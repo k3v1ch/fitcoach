@@ -27,11 +27,6 @@ spring:
   jackson:
     deserialization:
       fail-on-unknown-properties: true
-springdoc:
-  swagger-ui:
-    path: /swagger-ui.html
-    operations-sorter: method
-    tags-sorter: alpha
   mail:
     host: ${SMTP_HOST:localhost}
     port: ${SMTP_PORT:25}
@@ -41,6 +36,11 @@ springdoc:
       mail.smtp.connectiontimeout: 5000
       mail.smtp.timeout: 5000
       mail.smtp.writetimeout: 5000
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
 
 app:
   files:

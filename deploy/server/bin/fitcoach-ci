@@ -25,7 +25,10 @@ git_() { git -c safe.directory='*' --git-dir="$GIT_DIR" "$@"; }
 say() { printf '[CI] %s\n' "$*"; }
 
 tree() {  # tree <sha40> <каталог> — хеш дерева каталога в коммите или none
-  git_ rev-parse -q --verify "$1:$2^{tree}" 2>/dev/null || echo none
+  local id
+  # "<коммит>:<путь>" — всё после двоеточия git считает путём, суффиксы вроде ^{tree} сюда нельзя
+  id=$(git_ rev-parse -q --verify "$1:$2" 2>/dev/null) || { echo none; return 0; }
+  if [[ $(git_ cat-file -t "$id" 2>/dev/null) == tree ]]; then echo "$id"; else echo none; fi
 }
 
 image_tags() {  # image_tags <sha40> → "<тег backend> <тег edge>" (как в fitcoach-deploy)

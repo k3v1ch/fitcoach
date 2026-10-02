@@ -3,6 +3,8 @@
 # Задание /var/spool/fitcoach-ci/<id>.job — одна строка "refs/heads/<ветка> <sha40>".
 # Любая ветка: тесты бэкенда (mvn test с временным Postgres) и сборка образов.
 # master при успехе: fitcoach-deploy <sha>. Строки для пушащего начинаются с "[CI]".
+# Теги образов — по содержимому (как в fitcoach-deploy): неизменённое не пересобирается,
+# а тесты бэкенда не повторяются для уже проверенного кода backend/.
 # Флаг /opt/fitcoach/shared/ci-skip-tests временно отключает тесты (с предупреждением).
 set -Euo pipefail
 
@@ -13,6 +15,7 @@ WORK=/var/lib/fitcoach-ci/work
 MAVEN_IMAGE=maven:3.9.9-eclipse-temurin-21
 DEPLOY_REF=refs/heads/master
 SKIP_TESTS_FLAG=/opt/fitcoach/shared/ci-skip-tests
+TESTED=/var/lib/fitcoach-ci/backend-tested   # отметки <тег backend> о прошедших тестах
 KEEP_LOGS_DAYS=30
 
 exec 8>/run/fitcoach-ci.lock
@@ -20,6 +23,20 @@ flock 8
 
 git_() { git -c safe.directory='*' --git-dir="$GIT_DIR" "$@"; }
 say() { printf '[CI] %s\n' "$*"; }
+
+tree() {  # tree <sha40> <каталог> — хеш дерева каталога в коммите или none
+  git_ rev-parse -q --verify "$1:$2^{tree}" 2>/dev/null || echo none
+}
+
+image_tags() {  # image_tags <sha40> → "<тег backend> <тег edge>" (как в fitcoach-deploy)
+  local backend frontend edge
+  backend=$(tree "$1" backend)
+  frontend=$(tree "$1" frontend)
+  edge=$(tree "$1" deploy/edge)
+  printf '%s %s\n' "${backend:0:12}" "$(printf '%s %s' "$frontend" "$edge" | sha256sum | cut -c1-12)"
+}
+
+image_exists() { docker image inspect "$1" >/dev/null 2>&1; }
 
 backend_tests() {  # backend_tests <id> <каталог backend>
   local net=fitcoach-ci-$1 src=$2 rc
@@ -45,8 +62,9 @@ backend_tests() {  # backend_tests <id> <каталог backend>
 }
 
 run_job() {  # run_job <id> <ref> <sha40>
-  local id=$1 ref=$2 sha=$3 dir=$WORK/$1 tag=${3:0:12} started=$SECONDS
-  say "▶ ${ref#refs/heads/} @ $tag"
+  local id=$1 ref=$2 sha=$3 dir=$WORK/$1 started=$SECONDS bt et
+  read -r bt et < <(image_tags "$sha")
+  say "▶ ${ref#refs/heads/} @ ${sha:0:12}"
   rm -rf "$dir"
   install -d -m 0700 "$dir"
   git_ archive "$sha" | tar -x -C "$dir" || { say "✖ не удалось получить коммит"; return 1; }
@@ -54,23 +72,34 @@ run_job() {  # run_job <id> <ref> <sha40>
   if [[ -f $dir/backend/pom.xml ]]; then
     if [[ -e $SKIP_TESTS_FLAG ]]; then
       say "⚠ тесты бэкенда пропущены (флаг $SKIP_TESTS_FLAG)"
+    elif [[ -e $TESTED/$bt ]]; then
+      say "✔ тесты бэкенда: код backend/ не менялся, уже проверен"
     else
       say "▶ тесты бэкенда (mvn test)"
       backend_tests "$id" "$dir/backend" || { say "✖ тесты бэкенда упали"; return 1; }
+      install -d -m 0700 "$TESTED" && touch "$TESTED/$bt"
       say "✔ тесты бэкенда прошли"
     fi
   fi
   if [[ -f $dir/backend/Dockerfile ]]; then
-    say "▶ сборка образа backend"
-    timeout 30m docker build --progress=plain -t "fitcoach.local/backend:$tag" "$dir/backend" ||
-      { say "✖ сборка backend упала"; return 1; }
-    say "✔ образ backend собран"
+    if image_exists "fitcoach.local/backend:$bt"; then
+      say "✔ образ backend:$bt уже собран (код не менялся)"
+    else
+      say "▶ сборка образа backend"
+      timeout 30m docker build --progress=plain -t "fitcoach.local/backend:$bt" "$dir/backend" ||
+        { say "✖ сборка backend упала"; return 1; }
+      say "✔ образ backend собран"
+    fi
   fi
   if [[ -f $dir/deploy/edge/Dockerfile ]]; then
-    say "▶ сборка образа edge (фронтенд + nginx)"
-    timeout 30m docker build --progress=plain -f "$dir/deploy/edge/Dockerfile" -t "fitcoach.local/edge:$tag" "$dir" ||
-      { say "✖ сборка edge упала"; return 1; }
-    say "✔ образ edge собран"
+    if image_exists "fitcoach.local/edge:$et"; then
+      say "✔ образ edge:$et уже собран (фронтенд и nginx не менялись)"
+    else
+      say "▶ сборка образа edge (фронтенд + nginx)"
+      timeout 30m docker build --progress=plain -f "$dir/deploy/edge/Dockerfile" -t "fitcoach.local/edge:$et" "$dir" ||
+        { say "✖ сборка edge упала"; return 1; }
+      say "✔ образ edge собран"
+    fi
   fi
 
   if [[ $ref == "$DEPLOY_REF" ]]; then
@@ -78,8 +107,8 @@ run_job() {  # run_job <id> <ref> <sha40>
     timeout 20m /usr/local/sbin/fitcoach-deploy "$sha" ||
       { say "✖ выкладка не удалась, прод остался на прежней версии"; return 1; }
   else
-    # Для веток образы — только проверка сборки; занятые контейнерами docker не удалит.
-    docker rmi "fitcoach.local/backend:$tag" "fitcoach.local/edge:$tag" >/dev/null 2>&1 || true
+    # Для веток образы — только проверка сборки: убираем всё, что не нужно релизам
+    /usr/local/sbin/fitcoach-deploy --cleanup >/dev/null 2>&1 || true
   fi
   say "✔ готово за $((SECONDS - started)) с"
 }

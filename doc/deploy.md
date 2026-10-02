@@ -13,8 +13,8 @@
 
 | Сервис | Образ | Наружу | Назначение |
 |---|---|---|---|
-| `edge` | `fitcoach.local/edge:<sha12>` (nginx + сборка `frontend/`) | 80, 443 | TLS, заголовки защиты, лимиты запросов, раздача SPA, прокси `/api/`, Swagger |
-| `backend` | `fitcoach.local/backend:<sha12>` (из `backend/Dockerfile`) | нет | API `/api/v1`, работает от uid 10001 без capabilities |
+| `edge` | `fitcoach.local/edge:<хеш frontend/ + deploy/edge/>` (nginx + сборка `frontend/`) | 80, 443 | TLS, заголовки защиты, лимиты запросов, раздача SPA, прокси `/api/`, Swagger |
+| `backend` | `fitcoach.local/backend:<хеш backend/>` (из `backend/Dockerfile`) | нет | API `/api/v1`, работает от uid 10001 без capabilities |
 | `db` | `postgres:16-alpine` | нет | БД; сеть `data` без выхода в интернет |
 | `files-perms` | `alpine:3.20` | нет | разовый `chown` тома загрузок под uid 10001 |
 
@@ -126,7 +126,19 @@ touch /opt/fitcoach/shared/ci-skip-tests   # временно выкладыва
 Откат возвращает код и образы, но не схему БД: миграции Flyway назад не откатываются. Перед каждой
 выкладкой делается бэкап `pre-deploy-<sha>` — из него можно восстановить БД (раздел 7).
 
-Во время выкладки бэкенд перезапускается: 30–60 с API отвечает 502.
+Образы помечаются по содержимому: тег `backend` — хеш каталога `backend/`, тег `edge` — хеш `frontend/`
+и `deploy/edge/`. Что не менялось, то не пересобирается и не перезапускается, а тесты бэкенда
+для уже проверенного кода не повторяются. Время простоя при выкладке:
+
+| Что изменилось в коммите | Что видит пользователь |
+|---|---|
+| только документация или прочее | ничего, контейнеры не перезапускаются |
+| `frontend/` или `deploy/edge/` | перезапуск nginx, 1–2 с |
+| `backend/` | сайт открывается, API 30–60 с отвечает 502, пока стартует новый бэкенд; затем 1–2 с перезапуск nginx |
+
+Серверные скрипты (`/usr/local/sbin/fitcoach-*`, git-хуки, systemd-юниты) CI **не обновляет**: иначе
+любой, кто может пушить в `master`, получил бы root на сервере. После изменений в `deploy/server/`
+DevOps ставит их вручную: `deploy/server/install.sh base` из свежей копии репозитория.
 
 ## 6. TLS
 
@@ -187,7 +199,7 @@ systemctl list-timers fitcoach-backup.timer certbot.timer
 
 | Симптом | Причина и решение |
 |---|---|
-| `502` 30–60 с после пуша в master | идёт выкладка, бэкенд перезапускается |
+| `502` на запросах API 30–60 с после пуша в master | менялся `backend/`: идёт выкладка, стартует новый бэкенд |
 | `429 Too Many Requests` | лимит nginx: `/api` — 20 запросов/с с IP, вход/регистрация — 10 в минуту. Для нагрузочного теста добавьте IP в `ratelimit-allow.conf` (`203.0.113.10 1;`) и `docker exec fitcoach-edge-1 nginx -s reload` |
 | `ssh: Connection refused` с вашего IP | fail2ban: 3 неудачные попытки → бан на сутки. Снять: `fail2ban-client set sshd unbanip <IP>` |
 | `git push`: `Permission denied` | git — по паролю команды или по ключу; root — только по ключу. 3 неверных пароля за 10 минут → бан IP на сутки |

@@ -3,7 +3,11 @@
 #   fitcoach-deploy <sha40>     — выложить коммит (образы собираются, если их ещё нет)
 #   fitcoach-deploy --rollback  — вернуть предыдущий успешный релиз
 #   fitcoach-deploy --status    — текущий релиз и контейнеры
-# Если после выкладки проверка здоровья не прошла — автоматически возвращает прежний релиз.
+#   fitcoach-deploy --cleanup   — удалить старые релизы и неиспользуемые образы
+# Образы помечаются по содержимому: backend — хеш дерева backend/, edge — хеш frontend/ + deploy/edge/,
+# поэтому неизменённый сервис не пересобирается и не перезапускается. Сначала обновляется backend
+# (сайт в это время отдаёт прежний edge), затем edge. Если проверка здоровья не прошла —
+# автоматически возвращается прежний релиз.
 set -Eeuo pipefail
 
 GIT_DIR=/home/git/Iinformation-system/.git
@@ -27,10 +31,24 @@ current_sha() {
   basename "$target"
 }
 
+tree() {  # tree <sha40> <каталог> — хеш дерева каталога в коммите или none
+  git_ rev-parse -q --verify "$1:$2^{tree}" 2>/dev/null || echo none
+}
+
+image_tags() {  # image_tags <sha40> → "<тег backend> <тег edge>"
+  local backend frontend edge
+  backend=$(tree "$1" backend)
+  frontend=$(tree "$1" frontend)
+  edge=$(tree "$1" deploy/edge)
+  printf '%s %s\n' "${backend:0:12}" "$(printf '%s %s' "$frontend" "$edge" | sha256sum | cut -c1-12)"
+}
+
 compose() {  # compose <sha40> <аргументы docker compose...>
-  local sha=$1
+  local sha=$1 bt et
   shift
-  IMAGE_TAG=$(short "$sha") docker compose -p "$PROJECT" --env-file "$ENV_FILE" \
+  read -r bt et < <(image_tags "$sha")
+  # IMAGE_TAG нужен compose-файлам старых релизов: там один тег (коммит) на оба образа
+  IMAGE_TAG=$(short "$sha") BACKEND_TAG=$bt EDGE_TAG=$et docker compose -p "$PROJECT" --env-file "$ENV_FILE" \
     -f "$RELEASES/$sha/deploy/docker-compose.yml" "$@"
 }
 
@@ -44,32 +62,44 @@ export_release() {
 }
 
 build_images() {
-  local sha=$1 tag dir=$RELEASES/$1
-  tag=$(short "$sha")
-  if ! docker image inspect "fitcoach.local/backend:$tag" >/dev/null 2>&1; then
-    log "сборка образа backend:$tag"
-    docker build --progress=plain -t "fitcoach.local/backend:$tag" "$dir/backend"
+  local sha=$1 dir=$RELEASES/$1 bt et st
+  read -r bt et < <(image_tags "$sha")
+  st=$(short "$sha")
+  if ! docker image inspect "fitcoach.local/backend:$bt" >/dev/null 2>&1; then
+    log "сборка образа backend:$bt"
+    docker build --progress=plain -t "fitcoach.local/backend:$bt" "$dir/backend"
   fi
-  if ! docker image inspect "fitcoach.local/edge:$tag" >/dev/null 2>&1; then
-    log "сборка образа edge:$tag"
-    docker build --progress=plain -f "$dir/deploy/edge/Dockerfile" -t "fitcoach.local/edge:$tag" "$dir"
+  if ! docker image inspect "fitcoach.local/edge:$et" >/dev/null 2>&1; then
+    log "сборка образа edge:$et"
+    docker build --progress=plain -f "$dir/deploy/edge/Dockerfile" -t "fitcoach.local/edge:$et" "$dir"
   fi
+  # compose-файлы старых релизов ссылаются на образы по тегу коммита
+  docker tag "fitcoach.local/backend:$bt" "fitcoach.local/backend:$st"
+  docker tag "fitcoach.local/edge:$et" "fitcoach.local/edge:$st"
 }
 
-wait_healthy() {
-  local deadline=$((SECONDS + HEALTH_TIMEOUT)) b e d
-  d=$(domain)
+health() { docker inspect -f '{{.State.Health.Status}}' "$PROJECT-$1-1" 2>/dev/null || echo missing; }
+
+wait_service() {  # wait_service <сервис>: ждём healthy; unhealthy, падения при старте или таймаут — ошибка
+  local deadline=$((SECONDS + HEALTH_TIMEOUT)) status restarts
   while (( SECONDS < deadline )); do
-    b=$(docker inspect -f '{{.State.Health.Status}}' "$PROJECT-backend-1" 2>/dev/null || echo missing)
-    e=$(docker inspect -f '{{.State.Health.Status}}' "$PROJECT-edge-1" 2>/dev/null || echo missing)
-    if [[ $b == healthy && $e == healthy ]] &&
-       curl -fsSk -o /dev/null --max-time 10 --resolve "$d:443:127.0.0.1" "https://$d/v3/api-docs"; then
-      return 0
+    status=$(health "$1")
+    [[ $status == healthy ]] && return 0
+    [[ $status == unhealthy ]] && return 1
+    restarts=$(docker inspect -f '{{.RestartCount}}' "$PROJECT-$1-1" 2>/dev/null || echo 0)
+    if (( restarts > 0 )); then
+      log "$1 падает при старте"
+      return 1
     fi
-    [[ $b == unhealthy ]] && return 1
-    sleep 5
+    sleep 3
   done
   return 1
+}
+
+via_nginx() {
+  local d
+  d=$(domain)
+  curl -fsSk -o /dev/null --max-time 10 --resolve "$d:443:127.0.0.1" "https://$d/v3/api-docs"
 }
 
 record() {
@@ -77,24 +107,33 @@ record() {
   printf '%s %s\n' "$(date -u +%FT%TZ)" "$1" >> "$HISTORY"
 }
 
+keep_list() { tac "$HISTORY" 2>/dev/null | awk '!seen[$2]++ {print $2}' | head -n "$KEEP_RELEASES" || true; }
+
 cleanup() {
-  local keep d s img tag
-  keep=$(tac "$HISTORY" | awk '!seen[$2]++ {print $2}' | head -n "$KEEP_RELEASES")
+  local keep keep_tags=" " sha bt et d img
+  keep=$(keep_list)
+  for sha in $keep; do
+    read -r bt et < <(image_tags "$sha")
+    keep_tags+="backend:$bt edge:$et backend:$(short "$sha") edge:$(short "$sha") "
+  done
   for d in "$RELEASES"/*; do
     [[ -d $d ]] || continue
-    s=${d##*/}
-    grep -qx "$s" <<<"$keep" || rm -rf "$d"
+    grep -qx "${d##*/}" <<<"$keep" || rm -rf "$d"
   done
-  docker images --format '{{.Repository}}:{{.Tag}}' | { grep -E '^fitcoach\.local/(backend|edge):' || true; } | while read -r img; do
-    tag=${img##*:}
-    grep -q "^$tag" <<<"$keep" || docker rmi "$img" >/dev/null 2>&1 || true
-  done
+  docker images --format '{{.Repository}}:{{.Tag}}' | { grep -E '^fitcoach\.local/(backend|edge):' || true; } |
+    while read -r img; do
+      [[ $keep_tags == *" ${img#fitcoach.local/} "* ]] || docker rmi "$img" >/dev/null 2>&1 || true
+    done
   docker image prune -f >/dev/null
   docker builder prune -f --filter until=72h >/dev/null 2>&1 || true
 }
 
-up_and_check() {  # up_and_check <sha40>
-  compose "$1" up -d --remove-orphans && wait_healthy
+up_and_check() {  # up_and_check <sha40>: сначала db и backend (сайт отдаёт прежний edge), затем edge
+  compose "$1" up -d --remove-orphans db files-perms backend &&
+    wait_service backend &&
+    compose "$1" up -d --remove-orphans &&
+    wait_service edge &&
+    via_nginx
 }
 
 deploy() {
@@ -154,11 +193,15 @@ status() {
 install -d -m 0700 "$(dirname "$HISTORY")"
 case "${1:-}" in
   --status) status ;;
+  --cleanup)
+    exec 9>/run/fitcoach-deploy.lock
+    flock -w 1800 9 || die "другая выкладка не закончилась"
+    cleanup ;;
   --rollback)
     exec 9>/run/fitcoach-deploy.lock
     flock -w 1800 9 || die "другая выкладка не закончилась"
     rollback ;;
-  ""|-h|--help) sed -n '2,6p' "$0" ;;
+  ""|-h|--help) sed -n '2,11p' "$0" ;;
   *)
     exec 9>/run/fitcoach-deploy.lock
     flock -w 1800 9 || die "другая выкладка не закончилась"

@@ -19,6 +19,8 @@ import ru.sportorg.api.ApiSecurityErrorHandler;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.hamcrest.Matchers.containsString;
 import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 
@@ -61,7 +63,8 @@ class CsrfControllerTest {
                 .with(csrf())
                 .contentType("application/json")
                 .content("{\"email\":\"person@example.org\"}"))
-            .andExpect(status().isAccepted());
+            .andExpect(status().isAccepted())
+            .andExpect(content().string(containsString("Если адрес можно зарегистрировать, письмо будет отправлено.")));
 
         verify(registrationService).requestRegistration(
             ArgumentMatchers.any(RegistrationRequest.class),

@@ -31,6 +31,10 @@ services:
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
       SMTP_HOST: ${SMTP_HOST:-localhost}
       SMTP_PORT: ${SMTP_PORT:-25}
+      SMTP_AUTH: ${SMTP_AUTH:-false}
+      SMTP_SSL_ENABLE: ${SMTP_SSL_ENABLE:-false}
+      SMTP_STARTTLS_ENABLE: ${SMTP_STARTTLS_ENABLE:-false}
+      SMTP_STARTTLS_REQUIRED: ${SMTP_STARTTLS_REQUIRED:-false}
       SMTP_USERNAME: ${SMTP_USERNAME:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       MAIL_FROM: ${MAIL_FROM:-no-reply@sports-organization.local}

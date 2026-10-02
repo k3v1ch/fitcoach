@@ -40,6 +40,7 @@ public class ApiSecurityErrorHandler implements AuthenticationEntryPoint, Access
     private void writeError(HttpServletResponse response, HttpStatus status, String code, String message)
             throws IOException {
         response.setStatus(status.value());
+        response.setCharacterEncoding("UTF-8");
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         objectMapper.writeValue(response.getOutputStream(),
                 new ApiError(code, message, List.of(), UUID.randomUUID().toString()));

@@ -48,16 +48,21 @@
 ## 3. Установка с нуля
 
 ```bash
-# 1. Пакеты
+# 1. Пакеты; ротация логов контейнеров (json-file, 3 × 50 МБ) — до установки Docker
 apt-get update && apt-get install -y git certbot ufw fail2ban
+install -d /etc/docker
+echo '{"log-driver":"json-file","log-opts":{"max-size":"50m","max-file":"3"}}' > /etc/docker/daemon.json
 curl -fsSL https://get.docker.com | sh
 
-# 2. Пользователь и репозиторий git (push идёт по SSH под пользователем git)
+# 2. Пользователь и репозиторий git (push идёт по SSH под пользователем git).
+#    Репозиторий С РАБОЧЕЙ КОПИЕЙ (не --bare): скрипты работают с /home/git/Iinformation-system/.git
 adduser --disabled-password --gecos "" git
-sudo -u git git clone --bare <источник> /home/git/Iinformation-system   # или существующий репозиторий
-# в репозитории с рабочей копией: git config receive.denyCurrentBranch updateInstead
+passwd git        # пароль команды для push; можно и ключи в /home/git/.ssh/authorized_keys (700/600, владелец git)
+sudo -u git git clone <источник> /home/git/Iinformation-system
+sudo -u git git -C /home/git/Iinformation-system config receive.denyCurrentBranch updateInstead
 
-# 3. Серверная часть (скрипты, systemd-юниты, git-хуки, каталоги)
+# 3. Серверная часть: скрипты, compose-файл прода, systemd-юниты, git-хуки, каталоги
+git config --global --add safe.directory /home/git/Iinformation-system/.git
 git clone /home/git/Iinformation-system /tmp/fc && cd /tmp/fc
 deploy/server/install.sh base
 
@@ -74,6 +79,15 @@ fitcoach-cert issue
 # 7. Защита
 deploy/server/install.sh firewall   # ufw: только 22/80/443; DOCKER-USER: в контейнеры только 80/443
 deploy/server/install.sh ssh        # root только по ключу; git — пароль или ключ, git-shell без туннелей
+cat > /etc/fail2ban/jail.local <<'EOF'   # подбор пароля SSH: 3 попытки за 10 минут → бан на сутки
+[sshd]
+enabled = true
+maxretry = 3
+findtime = 10m
+bantime = 24h
+bantime.increment = true
+EOF
+systemctl restart fail2ban
 ```
 
 Проверка: `fitcoach-verify` — 26 проверок защиты и состояния; код выхода — число провалов.
@@ -126,7 +140,11 @@ touch /opt/fitcoach/shared/ci-skip-tests   # временно выкладыва
 ```
 
 Откат возвращает код и образы, но не схему БД: миграции Flyway назад не откатываются. Перед каждой
-выкладкой делается бэкап `pre-deploy-<sha>` — из него можно восстановить БД (раздел 7).
+выкладкой делается бэкап `pre-deploy-<sha>` — из него БД восстанавливается целиком (раздел 7).
+
+Код выхода `fitcoach-deploy`: 0 — выложено; 1 — не выложено, на проде прежний релиз (в том числе
+после автоматического отката); 2 — откат не удался или откатываться некуда, нужен ручной разбор.
+CI пишет об этом пушащему. Коммит с символическими ссылками не выкладывается и не собирается.
 
 Образы помечаются по содержимому: тег `backend` — хеш каталога `backend/`, тег `edge` — хеш `frontend/`
 и `deploy/edge/`. Что не менялось, то не пересобирается и не перезапускается, а тесты бэкенда
@@ -134,13 +152,17 @@ touch /opt/fitcoach/shared/ci-skip-tests   # временно выкладыва
 
 | Что изменилось в коммите | Что видит пользователь |
 |---|---|
-| только документация или прочее | ничего, контейнеры не перезапускаются |
+| только документация, `deploy/server/` и прочее вне `backend/`, `frontend/`, `deploy/edge/` | ничего, контейнеры не перезапускаются |
 | `frontend/` или `deploy/edge/` | перезапуск nginx, 1–2 с |
-| `backend/` | сайт открывается, API 30–60 с отвечает 502, пока стартует новый бэкенд; затем 1–2 с перезапуск nginx |
+| `backend/` | сайт открывается, API 30–60 с отвечает 502, пока стартует новый бэкенд, сессии сбрасываются (нужно войти заново); затем 1–2 с перезапуск nginx |
 
-Серверные скрипты (`/usr/local/sbin/fitcoach-*`, git-хуки, systemd-юниты) CI **не обновляет**: иначе
-любой, кто может пушить в `master`, получил бы root на сервере. После изменений в `deploy/server/`
-DevOps ставит их вручную: `deploy/server/install.sh base` из свежей копии репозитория.
+**Что CI не применяет сам.** Серверные скрипты (`/usr/local/sbin/fitcoach-*`, git-хуки, systemd-юниты)
+и compose-файл прода (`/opt/fitcoach/compose/docker-compose.yml`) ставит только DevOps:
+`deploy/server/install.sh base` из свежей копии репозитория. Compose-файл задаёт монтирования и привилегии
+контейнеров; если бы его брали из коммита, право пушить в `master` (пароль `git`) было бы правом root
+на сервере. Если `deploy/docker-compose.yml` в коммите отличается от установленного, CI предупреждает
+(`⚠ … применяется установленный`). Изменённые значения в `/opt/fitcoach/shared/.env` применяются
+при следующей выкладке (перезапуск затронутого сервиса).
 
 ## 6. TLS
 
@@ -152,23 +174,34 @@ DevOps ставит их вручную: `deploy/server/install.sh base` из с
 
 ## 7. Бэкапы и восстановление
 
-`fitcoach-backup.timer` — ежедневно в 03:30 UTC; также перед каждой выкладкой.
+`fitcoach-backup.timer` — ежедневно в 03:30 UTC; также перед каждой выкладкой (`pre-deploy-<sha>`).
 Каталог `/var/backups/fitcoach/<UTC>-<метка>/`: `db.dump` (pg_dump -Fc), `files.tar.gz` (загрузки),
-`repo.bundle` (весь git), `SHA256SUMS`. Хранятся 14 дней.
+`repo.bundle` (весь git; в `pre-deploy` не кладётся), `SHA256SUMS`. Хранятся 14 дней,
+бэкапов `pre-deploy` — не больше 10 последних.
 
 ```bash
 fitcoach-backup manual                       # внеочередной бэкап
 cd /var/backups/fitcoach/<каталог> && sha256sum -c SHA256SUMS
 
-# Восстановить БД (поверх текущей)
-docker exec -i fitcoach-db-1 sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' < db.dump
+# Восстановить БД — только заменой целиком: восстановление «поверх» (pg_restore --clean) не убирает
+# таблицы новых миграций и оставляет БД в несогласованном состоянии (проверено учениями).
+docker stop fitcoach-backend-1
+docker exec fitcoach-db-1 sh -c 'dropdb -U "$POSTGRES_USER" --force "$POSTGRES_DB" && createdb -U "$POSTGRES_USER" "$POSTGRES_DB"'
+docker exec -i fitcoach-db-1 sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --single-transaction --exit-on-error' < db.dump
+# затем выложить код, схема которого совпадает с бэкапом: релиз, бывший на проде в момент бэкапа
+# (для pre-deploy-<sha> — релиз до <sha>); если он уже текущий — тот же sha, бэкенд просто запустится
+fitcoach-deploy <sha40 того релиза>
 
 # Восстановить загруженные файлы
 docker run --rm -i -v fitcoach_files:/data alpine:3.20 sh -c 'rm -rf /data/* && tar -xzf - -C /data' < files.tar.gz
-docker compose -p fitcoach -f /opt/fitcoach/current/deploy/docker-compose.yml --env-file /opt/fitcoach/shared/.env up files-perms
+docker run --rm -v fitcoach_files:/data alpine:3.20 chown -R 10001:10001 /data
 
-# Восстановить репозиторий
-git clone --mirror repo.bundle /home/git/restored.git
+# Восстановить репозиторий (испорченный — сначала отодвинуть в сторону)
+git clone --mirror repo.bundle /home/git/Iinformation-system/.git
+git -C /home/git/Iinformation-system config core.bare false
+git -C /home/git/Iinformation-system config receive.denyCurrentBranch updateInstead
+chown -R git:git /home/git/Iinformation-system && sudo -u git git -C /home/git/Iinformation-system checkout -f master
+deploy/server/install.sh base    # вернуть хуки (в bundle их нет)
 ```
 
 Бэкапы лежат на том же диске; копию за пределы сервера стоит снимать отдельно.
@@ -184,7 +217,7 @@ journalctl -u fitcoach-ci.service                       # запуски CI
 systemctl list-timers fitcoach-backup.timer certbot.timer
 ```
 
-Логи контейнеров ротируются Docker (json-file, 3 × 50 МБ).
+Логи контейнеров ротирует Docker по `/etc/docker/daemon.json` (json-file, 3 × 50 МБ; см. раздел 3, шаг 1).
 
 ## 9. Контракт для фронтенда
 

@@ -2,6 +2,8 @@
 #   BACKEND_TAG=<хеш backend/> EDGE_TAG=<хеш frontend/+deploy/edge/> docker compose -p fitcoach \
 #     --env-file /opt/fitcoach/shared/.env -f deploy/docker-compose.yml up -d
 # Теги по содержимому: если код сервиса не менялся, его контейнер не перезапускается.
+# На сервере действует копия /opt/fitcoach/compose/docker-compose.yml (её ставит root:
+# deploy/server/install.sh base); правка этого файла в коммите сама на прод не попадает.
 # Наружу публикуется только edge (80/443); db и backend доступны лишь внутри сетей Docker.
 name: fitcoach
 
@@ -61,7 +63,8 @@ services:
       SMTP_STARTTLS_REQUIRED: ${SMTP_STARTTLS_REQUIRED:-false}
       SMTP_USERNAME: ${SMTP_USERNAME:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
-      MAIL_FROM: ${MAIL_FROM:-no-reply@sports-organization.local}
+      # smtp.mail.ru принимает только отправителя = SMTP_USERNAME (иначе 550 not local sender)
+      MAIL_FROM: ${MAIL_FROM:-${SMTP_USERNAME:-no-reply@sports-organization.local}}
       JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=70 -XX:+UseSerialGC"
     volumes:
       - files:/app/data/files

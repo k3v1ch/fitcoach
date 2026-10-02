@@ -176,6 +176,9 @@ onMounted(() => {
   } else if (query.reset === '1') {
     currentTab.value = 'login'
     infoMessage.value = 'Пароль изменён. Войдите с новым паролем.'
+  } else if (query.expired === '1') {
+    currentTab.value = 'login'
+    infoMessage.value = 'Сеанс завершён. Войдите снова — вернём на ту же страницу.'
   }
 })
 </script>

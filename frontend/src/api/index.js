@@ -16,6 +16,13 @@ export function resetCsrf() {
   csrfToken = null
 }
 
+// Вызывается, когда сервер ответил 401 UNAUTHENTICATED: серверной сессии больше нет
+// (выкладка бэкенда, 8 часов с входа, смена пароля на другом устройстве).
+let onUnauthenticated = null
+export function setUnauthenticatedHandler(handler) {
+  onUnauthenticated = handler
+}
+
 export async function apiFetch(path, options = {}, retried = false) {
   const method = (options.method || 'GET').toUpperCase()
   const headers = { ...(options.headers || {}) }
@@ -35,10 +42,6 @@ export async function apiFetch(path, options = {}, retried = false) {
     ...options, method, headers, credentials: 'include'
   })
 
-  // После входа сервер меняет сессию и присылает новый CSRF-токен в заголовке ответа.
-  const freshToken = res.headers.get(csrfHeaderName)
-  if (freshToken) csrfToken = freshToken
-
   // Ошибка CSRF приходит как обычный 403: один раз берём свежий токен и повторяем запрос.
   if (res.status === 403 && isMutation && !retried) {
     resetCsrf()
@@ -48,6 +51,7 @@ export async function apiFetch(path, options = {}, retried = false) {
   if (!res.ok) {
     let err = { code: 'UNKNOWN', message: `HTTP ${res.status}` }
     try { err = await res.json() } catch (_) {}
+    if (res.status === 401 && err.code === 'UNAUTHENTICATED' && onUnauthenticated) onUnauthenticated()
     const error = new Error(err.message || `HTTP ${res.status}`)
     error.code = err.code
     error.status = res.status

@@ -8,13 +8,17 @@
 # Образы помечаются по содержимому: backend — хеш дерева backend/, edge — хеш frontend/ + deploy/edge/,
 # поэтому неизменённый сервис не пересобирается и не перезапускается. Сначала обновляется backend
 # (сайт в это время отдаёт прежний edge), затем edge. Если проверка здоровья не прошла —
-# автоматически возвращается прежний релиз.
+# автоматически возвращается прежний релиз (код выхода 1); если и откат не удался — код 2.
+# Compose-файл — только установленный root-ом /opt/fitcoach/compose/docker-compose.yml
+# (deploy/server/install.sh base): файл из коммита задавал бы монтирования и привилегии
+# контейнеров, то есть давал бы root на сервере любому, кто может пушить в master.
 set -Eeuo pipefail
 
 GIT_DIR=/home/git/Iinformation-system/.git
 BASE=/opt/fitcoach
 RELEASES=$BASE/releases
 ENV_FILE=$BASE/shared/.env
+COMPOSE_FILE=$BASE/compose/docker-compose.yml
 HISTORY=/var/lib/fitcoach/deploy-history   # строки: <UTC> <sha40>
 PROJECT=fitcoach
 KEEP_RELEASES=5
@@ -51,14 +55,21 @@ compose() {  # compose <sha40> <аргументы docker compose...>
   local sha=$1 bt et
   shift
   read -r bt et < <(image_tags "$sha")
-  # IMAGE_TAG нужен compose-файлам старых релизов: там один тег (коммит) на оба образа
-  IMAGE_TAG=$(short "$sha") BACKEND_TAG=$bt EDGE_TAG=$et docker compose -p "$PROJECT" --env-file "$ENV_FILE" \
-    -f "$RELEASES/$sha/deploy/docker-compose.yml" "$@"
+  # каталог релиза — только для путей сборки (../backend, ..); конфигурация — установленный файл
+  BACKEND_TAG=$bt EDGE_TAG=$et docker compose -p "$PROJECT" --env-file "$ENV_FILE" \
+    -f "$COMPOSE_FILE" --project-directory "$RELEASES/$sha/deploy" "$@"
+}
+
+no_symlinks() {  # no_symlinks <sha40>: символическая ссылка вместо Dockerfile дала бы прочитать файлы сервера
+  local link
+  link=$(git_ ls-tree -r "$1" | awk '$1 == "120000" {print $4; exit}')
+  [[ -z $link ]] || die "в коммите символическая ссылка ($link) — такие коммиты не выкладываются"
 }
 
 export_release() {
   local sha=$1 dir=$RELEASES/$1
   [[ -d $dir ]] && return 0
+  no_symlinks "$sha"
   rm -rf "$dir.tmp"
   install -d -m 0755 "$dir.tmp"
   git_ archive "$sha" | tar -x -C "$dir.tmp"
@@ -66,9 +77,8 @@ export_release() {
 }
 
 build_images() {
-  local sha=$1 dir=$RELEASES/$1 bt et st
+  local sha=$1 dir=$RELEASES/$1 bt et
   read -r bt et < <(image_tags "$sha")
-  st=$(short "$sha")
   if ! docker image inspect "fitcoach.local/backend:$bt" >/dev/null 2>&1; then
     log "сборка образа backend:$bt"
     docker build --progress=plain -t "fitcoach.local/backend:$bt" "$dir/backend"
@@ -77,9 +87,6 @@ build_images() {
     log "сборка образа edge:$et"
     docker build --progress=plain -f "$dir/deploy/edge/Dockerfile" -t "fitcoach.local/edge:$et" "$dir"
   fi
-  # compose-файлы старых релизов ссылаются на образы по тегу коммита
-  docker tag "fitcoach.local/backend:$bt" "fitcoach.local/backend:$st"
-  docker tag "fitcoach.local/edge:$et" "fitcoach.local/edge:$st"
 }
 
 health() { docker inspect -f '{{.State.Health.Status}}' "$PROJECT-$1-1" 2>/dev/null || echo missing; }
@@ -118,7 +125,7 @@ cleanup() {
   keep=$(keep_list)
   for sha in $keep; do
     read -r bt et < <(image_tags "$sha")
-    keep_tags+="backend:$bt edge:$et backend:$(short "$sha") edge:$(short "$sha") "
+    keep_tags+="backend:$bt edge:$et "
   done
   for d in "$RELEASES"/*; do
     [[ -d $d ]] || continue
@@ -148,9 +155,13 @@ deploy() {
   [[ $sha =~ ^[0-9a-f]{40}$ ]] || die "нужен полный sha коммита (40 символов)"
   git_ cat-file -e "$sha^{commit}" 2>/dev/null || die "коммита $sha нет в репозитории"
   [[ -f $ENV_FILE ]] || die "нет $ENV_FILE"
+  [[ -f $COMPOSE_FILE ]] || die "нет $COMPOSE_FILE — установите: deploy/server/install.sh base"
   prev=$(current_sha)
   export_release "$sha"
-  [[ -f $RELEASES/$sha/deploy/docker-compose.yml ]] || die "в коммите нет deploy/docker-compose.yml"
+  if ! cmp -s "$RELEASES/$sha/deploy/docker-compose.yml" "$COMPOSE_FILE"; then
+    log "⚠ deploy/docker-compose.yml в коммите отличается от установленного — применяется установленный;"
+    log "⚠ чтобы применить новый, DevOps запускает deploy/server/install.sh base"
+  fi
   build_images "$sha"
   /usr/local/sbin/fitcoach-cert link-only
   if [[ -n $prev && $prev != "$sha" ]]; then
@@ -160,21 +171,23 @@ deploy() {
   if up_and_check "$sha"; then
     record "$sha"
     log "готово: на проде $(short "$sha")"
-    cleanup
+    cleanup || log "предупреждение: очистка старых релизов не удалась"
     return 0
   fi
   log "проверка здоровья не прошла"
   compose "$sha" ps || true
   compose "$sha" logs --tail 60 backend || true
-  if [[ -n $prev && $prev != "$sha" ]]; then
-    log "откат на $(short "$prev")"
-    if up_and_check "$prev"; then
-      log "откат выполнен, на проде $(short "$prev")"
-    else
-      log "ОТКАТ НЕ УДАЛСЯ — нужен ручной разбор"
-    fi
+  if [[ -z $prev || $prev == "$sha" ]]; then
+    log "прежнего релиза нет — откатываться некуда, нужен ручной разбор"
+    return 2
   fi
-  return 1
+  log "откат на $(short "$prev")"
+  if up_and_check "$prev"; then
+    log "откат выполнен, на проде $(short "$prev")"
+    return 1
+  fi
+  log "ОТКАТ НЕ УДАЛСЯ — нужен ручной разбор"
+  return 2
 }
 
 rollback() {

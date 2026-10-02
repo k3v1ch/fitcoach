@@ -60,7 +60,8 @@ server {
     # Статика сборки Vite: имена файлов с хешем, кэшируем надолго.
     location /assets/ {
         include /etc/nginx/snippets/security-headers.conf;
-        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        # без always: 404/429 на файл сборки не должны кэшироваться на год
+        add_header Cache-Control "public, max-age=31536000, immutable";
         try_files $uri =404;
     }
 

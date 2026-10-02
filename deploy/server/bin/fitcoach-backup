@@ -1,27 +1,41 @@
 #!/usr/bin/env bash
 # Бэкап ФитКоуч: дамп БД, архив загруженных файлов, git bundle репозитория.
-#   fitcoach-backup [метка]  → /var/backups/fitcoach/<UTC>-<метка>/  (хранение 14 дней)
-# Восстановление БД (см. doc/deploy.md):
-#   docker exec -i fitcoach-db-1 sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' < db.dump
+#   fitcoach-backup [метка]  → /var/backups/fitcoach/<UTC>-<метка>/
+# Хранение 14 дней; бэкапов перед выкладкой (pre-deploy-*) — не больше 10 последних, без git bundle.
+# Восстановление — doc/deploy.md, раздел 7: БД заменяется целиком, бэкенд на это время остановлен.
 set -Eeuo pipefail
 
 ROOT=/var/backups/fitcoach
 KEEP_DAYS=14
+KEEP_PRE_DEPLOY=10
 GIT_DIR=/home/git/Iinformation-system/.git
 label=${1:-daily}
 [[ $label =~ ^[a-z0-9-]+$ ]] || { echo "fitcoach-backup: метка — только a-z, 0-9, -" >&2; exit 2; }
 
 umask 077
+install -d -m 0700 "$ROOT"
+# Старое удаляем до нового бэкапа: при заполненном диске иначе место так и не освободится
+find "$ROOT" -mindepth 1 -maxdepth 1 -type d -mtime +"$KEEP_DAYS" -exec rm -rf {} +
+
 dir=$ROOT/$(date -u +%Y%m%dT%H%M%SZ)-$label
 install -d -m 0700 "$dir"
+complete=""
+# Неудачная попытка не оставляет каталог: он занимал бы место и обманывал fitcoach-verify
+trap '[[ -n $complete ]] || rm -rf -- "$dir"' EXIT
 
 db=$(docker ps -q --filter label=com.docker.compose.project=fitcoach --filter label=com.docker.compose.service=db)
 [[ -n $db ]] || { echo "fitcoach-backup: контейнер БД не запущен" >&2; exit 1; }
 docker exec "$db" sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > "$dir/db.dump"
 docker exec -i "$db" pg_restore --list < "$dir/db.dump" > /dev/null
 docker run --rm --network none -v fitcoach_files:/data:ro alpine:3.20 tar -C /data -czf - . > "$dir/files.tar.gz"
-git -c safe.directory='*' --git-dir="$GIT_DIR" bundle create "$dir/repo.bundle" --all 2>/dev/null
-(cd "$dir" && sha256sum db.dump files.tar.gz repo.bundle > SHA256SUMS)
+files=(db.dump files.tar.gz)
+if [[ $label != pre-deploy-* ]]; then
+  git -c safe.directory='*' --git-dir="$GIT_DIR" bundle create "$dir/repo.bundle" --all 2>/dev/null
+  files+=(repo.bundle)
+fi
+(cd "$dir" && sha256sum "${files[@]}" > SHA256SUMS)
+complete=1
 
-find "$ROOT" -mindepth 1 -maxdepth 1 -type d -mtime +"$KEEP_DAYS" -exec rm -rf {} +
+find "$ROOT" -mindepth 1 -maxdepth 1 -type d -name '*-pre-deploy-*' -printf '%f\n' | sort -r |
+  tail -n +"$((KEEP_PRE_DEPLOY + 1))" | while read -r old; do rm -rf -- "${ROOT:?}/$old"; done
 echo "$dir"

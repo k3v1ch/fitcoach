@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { ensureSession, currentOrganization, hasRole, homePath } from '../utils/session'
+import { ensureSession, currentUser, clearSession, currentOrganization, hasRole, homePath } from '../utils/session'
+import { setUnauthenticatedHandler } from '../api/index'
 
 // Auth
 import AuthView from '../views/auth/AuthView.vue'
@@ -137,6 +138,14 @@ const SECTION_ROLES = {
   parent: ['PARENT'],
   athlete: ['ATHLETE']
 }
+
+// Сессия на сервере закончилась — на вход, затем обратно на ту же страницу
+setUnauthenticatedHandler(() => {
+  if (!currentUser.value) return // первая загрузка: перенаправит beforeEach
+  clearSession()
+  const here = router.currentRoute.value
+  if (!here.meta.public) router.push({ path: '/', query: { next: here.fullPath, expired: '1' } })
+})
 
 router.beforeEach(async (to) => {
   if (to.meta.public) return true

@@ -6,10 +6,15 @@ LOGDIR=/var/log/fitcoach-ci
 ZERO=0000000000000000000000000000000000000000
 
 ids=""
+n=0
+now=$(date +%s)
+rnd=$(od -An -N3 -tx1 /dev/urandom | tr -d ' \n')
 while read -r _ new ref; do
   [ "$new" = "$ZERO" ] && continue
   case "$ref" in refs/heads/*) ;; *) continue ;; esac
-  id="$(date +%s)-$(od -An -N4 -tx1 /dev/urandom | tr -d ' \n')"
+  # <время>-<номер ref в пуше><случайное>: воркер берёт задания по имени, то есть в порядке пуша
+  id="$now-$(printf '%02x' "$n")$rnd"
+  n=$((n + 1))
   if printf '%s %s\n' "$ref" "$new" > "$SPOOL/.$id.tmp" && mv "$SPOOL/.$id.tmp" "$SPOOL/$id.job"; then
     echo "[CI] задание $id: ${ref#refs/heads/} @ $(printf '%.12s' "$new")"
     ids="$ids $id"
@@ -25,6 +30,8 @@ stream() {
   st="$LOGDIR/$1.status"
   seen=0
   waited=0
+  idle=0
+  queued=""
   while [ "$waited" -lt 2700 ]; do
     if [ -r "$log" ]; then
       total=$(wc -l < "$log")
@@ -32,9 +39,16 @@ stream() {
         sed -n "$((seen + 1)),${total}p" "$log" | grep -a '^\[CI\]'
         seen=$total
       fi
-    elif [ "$waited" -ge 60 ]; then
+    elif [ -e "$SPOOL/$1.job" ] &&
+         [ "$(systemctl show -p ActiveState --value fitcoach-ci.service 2>/dev/null)" = activating ]; then
+      # задание ждёт в очереди, пока воркер собирает другое
+      [ -n "$queued" ] || echo "[CI] задание в очереди: воркер занят другой сборкой"
+      queued=1
+    elif [ "$idle" -ge 60 ]; then
       echo "[CI] воркер не взял задание за минуту — сообщите DevOps (fitcoach-ci.path)"
       return
+    else
+      idle=$((idle + 2))
     fi
     if [ -r "$st" ]; then
       total=$(wc -l < "$log")

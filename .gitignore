@@ -1,0 +1,3 @@
+# Секреты окружения не коммитим (на проде: /opt/fitcoach/shared/.env)
+/.env
+/deploy/.env

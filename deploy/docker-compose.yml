@@ -1,6 +1,7 @@
 # Прод-стек ИС «ФитКоуч». Запускается скриптом fitcoach-deploy:
-#   IMAGE_TAG=<sha12> docker compose -p fitcoach --env-file /opt/fitcoach/shared/.env \
-#     -f deploy/docker-compose.yml up -d
+#   BACKEND_TAG=<хеш backend/> EDGE_TAG=<хеш frontend/+deploy/edge/> docker compose -p fitcoach \
+#     --env-file /opt/fitcoach/shared/.env -f deploy/docker-compose.yml up -d
+# Теги по содержимому: если код сервиса не менялся, его контейнер не перезапускается.
 # Наружу публикуется только edge (80/443); db и backend доступны лишь внутри сетей Docker.
 name: fitcoach
 
@@ -33,7 +34,7 @@ services:
     restart: "no"
 
   backend:
-    image: fitcoach.local/backend:${IMAGE_TAG:-dev}
+    image: fitcoach.local/backend:${BACKEND_TAG:-dev}
     build:
       context: ../backend
     restart: unless-stopped
@@ -77,7 +78,7 @@ services:
     security_opt: ["no-new-privileges:true"]
 
   edge:
-    image: fitcoach.local/edge:${IMAGE_TAG:-dev}
+    image: fitcoach.local/edge:${EDGE_TAG:-dev}
     build:
       context: ..
       dockerfile: deploy/edge/Dockerfile

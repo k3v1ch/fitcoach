@@ -68,7 +68,7 @@ class RegistrationServiceTest {
             RegistrationAccountType.TRAINER, NOW)).thenReturn(Optional.of(userId));
 
         registrationService.requestRegistration(
-            new RegistrationRequest(" Person@Example.org ", RegistrationAccountType.TRAINER, null), "192.0.2.10"
+            new RegistrationRequest(" Person@Example.org ", RegistrationAccountType.TRAINER), "192.0.2.10"
         );
 
         var tokenCaptor = ArgumentCaptor.forClass(String.class);

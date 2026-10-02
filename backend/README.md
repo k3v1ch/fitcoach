@@ -17,7 +17,7 @@ Backend for the sports organization specification. The API uses Java 21, Spring 
 
 `GET /api/v1/auth/csrf` returns `{ "token": "...", "headerName": "X-CSRF-TOKEN" }` and creates a server-side session. The token must accompany state-changing requests.
 
-`POST /api/v1/auth/register` accepts an email, full name, and optional phone, then returns `202`. Pending accounts receive a one-time activation link by SMTP. `POST /api/v1/auth/register/confirm` accepts that token and a 15-128 character password, sets an Argon2id hash, and activates the account. Tokens are stored only as SHA-256 hashes, expire after 30 minutes, and can be used once. Registration requests are rate-limited by email and source IP. Mail delivery happens after the database transaction commits; SMTP failure does not expose token data in the API or logs.
+`POST /api/v1/auth/register` accepts an email and optional account type, then returns `202`. Pending accounts receive a one-time activation link by SMTP. `POST /api/v1/auth/register/confirm` accepts that token, a full name, and a 15-128 character password, sets an Argon2id hash, and activates the account. Tokens are stored only as SHA-256 hashes, expire after 30 minutes, and can be used once. Registration requests are rate-limited by email and source IP. Mail delivery happens after the database transaction commits; SMTP failure does not expose token data in the API or logs.
 
 `POST /api/v1/auth/login` authenticates against PostgreSQL, rotates the session ID, creates an absolute eight-hour session expiry, and returns the current user. A fresh CSRF token is returned in the `X-CSRF-TOKEN` response header. `POST /api/v1/auth/logout` invalidates the session; `GET /api/v1/me` returns the profile and active memberships.
 

@@ -53,14 +53,14 @@ class CsrfControllerTest {
         mockMvc.perform(MockMvcRequestBuilders
                 .post("/api/v1/auth/register")
                 .contentType("application/json")
-                .content("{\"email\":\"person@example.org\",\"fullName\":\"Test Person\"}"))
+                .content("{\"email\":\"person@example.org\"}"))
             .andExpect(status().isForbidden());
 
         mockMvc.perform(MockMvcRequestBuilders
                 .post("/api/v1/auth/register")
                 .with(csrf())
                 .contentType("application/json")
-                .content("{\"email\":\"person@example.org\",\"fullName\":\"Test Person\"}"))
+                .content("{\"email\":\"person@example.org\"}"))
             .andExpect(status().isAccepted());
 
         verify(registrationService).requestRegistration(

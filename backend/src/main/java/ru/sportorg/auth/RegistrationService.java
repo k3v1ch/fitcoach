@@ -61,7 +61,7 @@ class RegistrationService {
         } else {
             var created = accountRepository.createPending(
                     request.email().trim(), normalizedEmail,
-                    request.fullName() == null ? "" : request.fullName().trim(),
+                    "",
                     request.accountType(), now);
             if (created.isEmpty()) {
                 var concurrentAccount = accountRepository.findByNormalizedEmailForUpdate(normalizedEmail);

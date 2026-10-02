@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+# CI-воркер ФитКоуч. Запускает systemd (fitcoach-ci.path), когда git-хук post-receive кладёт задание.
+# Задание /var/spool/fitcoach-ci/<id>.job — одна строка "refs/heads/<ветка> <sha40>".
+# Любая ветка: тесты бэкенда (mvn test с временным Postgres) и сборка образов.
+# master при успехе: fitcoach-deploy <sha>. Строки для пушащего начинаются с "[CI]".
+# Флаг /opt/fitcoach/shared/ci-skip-tests временно отключает тесты (с предупреждением).
+set -Euo pipefail
+
+GIT_DIR=/home/git/Iinformation-system/.git
+SPOOL=/var/spool/fitcoach-ci
+LOGDIR=/var/log/fitcoach-ci
+WORK=/var/lib/fitcoach-ci/work
+MAVEN_IMAGE=maven:3.9.9-eclipse-temurin-21
+DEPLOY_REF=refs/heads/master
+SKIP_TESTS_FLAG=/opt/fitcoach/shared/ci-skip-tests
+KEEP_LOGS_DAYS=30
+
+exec 8>/run/fitcoach-ci.lock
+flock 8
+
+git_() { git -c safe.directory='*' --git-dir="$GIT_DIR" "$@"; }
+say() { printf '[CI] %s\n' "$*"; }
+
+backend_tests() {  # backend_tests <id> <каталог backend>
+  local net=fitcoach-ci-$1 src=$2 rc
+  docker rm -f "$net-db" >/dev/null 2>&1 || true
+  docker network rm "$net" >/dev/null 2>&1 || true
+  docker network create "$net" >/dev/null || return 1
+  docker run -d --name "$net-db" --network "$net" --network-alias db --memory 256m \
+    -e POSTGRES_DB=ci -e POSTGRES_USER=ci -e POSTGRES_PASSWORD=ci \
+    --tmpfs /var/lib/postgresql/data postgres:16-alpine >/dev/null || return 1
+  for _ in $(seq 1 45); do
+    docker exec "$net-db" pg_isready -h 127.0.0.1 -U ci -d ci >/dev/null 2>&1 && break
+    sleep 2
+  done
+  timeout 30m docker run --rm --network "$net" --memory 1536m \
+    -v "$src:/src" -w /src -v fitcoach-ci-m2:/root/.m2 \
+    -e DATABASE_URL=jdbc:postgresql://db:5432/ci -e DATABASE_USERNAME=ci -e DATABASE_PASSWORD=ci \
+    -e MAVEN_OPTS=-Xmx512m \
+    "$MAVEN_IMAGE" mvn -B -ntp test
+  rc=$?
+  docker rm -f "$net-db" >/dev/null 2>&1
+  docker network rm "$net" >/dev/null 2>&1
+  return "$rc"
+}
+
+run_job() {  # run_job <id> <ref> <sha40>
+  local id=$1 ref=$2 sha=$3 dir=$WORK/$1 tag=${3:0:12} started=$SECONDS
+  say "▶ ${ref#refs/heads/} @ $tag"
+  rm -rf "$dir"
+  install -d -m 0700 "$dir"
+  git_ archive "$sha" | tar -x -C "$dir" || { say "✖ не удалось получить коммит"; return 1; }
+
+  if [[ -f $dir/backend/pom.xml ]]; then
+    if [[ -e $SKIP_TESTS_FLAG ]]; then
+      say "⚠ тесты бэкенда пропущены (флаг $SKIP_TESTS_FLAG)"
+    else
+      say "▶ тесты бэкенда (mvn test)"
+      backend_tests "$id" "$dir/backend" || { say "✖ тесты бэкенда упали"; return 1; }
+      say "✔ тесты бэкенда прошли"
+    fi
+  fi
+  if [[ -f $dir/backend/Dockerfile ]]; then
+    say "▶ сборка образа backend"
+    timeout 30m docker build --progress=plain -t "fitcoach.local/backend:$tag" "$dir/backend" ||
+      { say "✖ сборка backend упала"; return 1; }
+    say "✔ образ backend собран"
+  fi
+  if [[ -f $dir/deploy/edge/Dockerfile ]]; then
+    say "▶ сборка образа edge (фронтенд + nginx)"
+    timeout 30m docker build --progress=plain -f "$dir/deploy/edge/Dockerfile" -t "fitcoach.local/edge:$tag" "$dir" ||
+      { say "✖ сборка edge упала"; return 1; }
+    say "✔ образ edge собран"
+  fi
+
+  if [[ $ref == "$DEPLOY_REF" ]]; then
+    say "▶ выкладка на прод"
+    timeout 20m /usr/local/sbin/fitcoach-deploy "$sha" ||
+      { say "✖ выкладка не удалась, прод остался на прежней версии"; return 1; }
+  else
+    # Для веток образы — только проверка сборки; занятые контейнерами docker не удалит.
+    docker rmi "fitcoach.local/backend:$tag" "fitcoach.local/edge:$tag" >/dev/null 2>&1 || true
+  fi
+  say "✔ готово за $((SECONDS - started)) с"
+}
+
+write_status() {  # write_status <файл> <OK|FAIL> <ref> <sha>
+  local tmp=$1.tmp
+  printf '%s %s %s %s\n' "$2" "$(date -u +%FT%TZ)" "${3#refs/heads/}" "${4:0:12}" > "$tmp"
+  chgrp git "$tmp"
+  chmod 0640 "$tmp"
+  mv "$tmp" "$1"
+}
+
+process() {  # process <файл задания>
+  local job=$1 id ref="" sha="" log status rc
+  id=$(basename "$job" .job)
+  [[ $id =~ ^[0-9]{10}-[0-9a-f]{8}$ ]] || { rm -f "$job"; return; }
+  read -r ref sha < "$job" || true
+  rm -f "$job"
+  log=$LOGDIR/$id.log
+  status=$LOGDIR/$id.status
+  install -m 0640 -g git /dev/null "$log"
+  if ! [[ $sha =~ ^[0-9a-f]{40}$ && $ref =~ ^refs/heads/[A-Za-z0-9._/-]+$ && $ref != *..* ]] ||
+     ! git_ cat-file -e "$sha^{commit}" 2>/dev/null; then
+    say "✖ некорректное задание" >> "$log"
+    write_status "$status" FAIL "${ref:-?}" "${sha:-?}"
+    return
+  fi
+  run_job "$id" "$ref" "$sha" >> "$log" 2>&1
+  rc=$?
+  rm -rf "${WORK:?}/$id"
+  if (( rc == 0 )); then write_status "$status" OK "$ref" "$sha"; else write_status "$status" FAIL "$ref" "$sha"; fi
+}
+
+while :; do
+  mapfile -t jobs < <(find "$SPOOL" -maxdepth 1 -type f -name '*.job' | sort)
+  (( ${#jobs[@]} )) || break
+  for j in "${jobs[@]}"; do process "$j"; done
+done
+find "$LOGDIR" -maxdepth 1 -type f -mtime +"$KEEP_LOGS_DAYS" -delete

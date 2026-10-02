@@ -1,0 +1,16 @@
+#!/bin/sh
+# Защита master: нельзя удалить ветку и нельзя переписать историю (force-push).
+ref=$1
+old=$2
+new=$3
+ZERO=0000000000000000000000000000000000000000
+[ "$ref" = "refs/heads/master" ] || exit 0
+if [ "$new" = "$ZERO" ]; then
+  echo "[guard] удалять master запрещено" >&2
+  exit 1
+fi
+if [ "$old" != "$ZERO" ] && ! git merge-base --is-ancestor "$old" "$new"; then
+  echo "[guard] force-push в master запрещён: сделайте git pull --rebase и пушьте снова" >&2
+  exit 1
+fi
+exit 0

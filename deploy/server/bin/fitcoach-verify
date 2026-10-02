@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Проверка защиты и состояния сервера ФитКоуч. Код выхода — число проваленных проверок.
+set -uo pipefail
+
+fails=0
+pass() { printf 'PASS  %s\n' "$1"; }
+fail() { printf 'FAIL  %s\n' "$1"; fails=$((fails + 1)); }
+check() { local name=$1; shift; if "$@" >/dev/null 2>&1; then pass "$name"; else fail "$name"; fi; }
+
+DOMAIN=$(sed -n 's/^DOMAIN=//p' /opt/fitcoach/shared/.env 2>/dev/null | tail -n 1)
+
+public_ports() {
+  ss -H -tln | awk '{print $4}' | grep -Ev '^(127\.|\[::1\]|\[::ffff:127\.)' |
+    sed -E 's/.*:([0-9]+)$/\1/' | sort -un | tr '\n' ' '
+}
+ufw_ports() { ufw status | awk '/ALLOW/ {print $1}' | sort -u | tr '\n' ' '; }
+health() { [[ $(docker inspect -f '{{.State.Health.Status}}' "fitcoach-$1-1" 2>/dev/null) == healthy ]]; }
+no_ports() { [[ -z $(docker port "fitcoach-$1-1" 2>/dev/null) ]]; }
+sshd_has() { sshd -T "$@" 2>/dev/null; }
+
+check "наружу слушают только 22, 80, 443"        test "$(public_ports)" = "22 80 443 "
+check "ufw включён, входящие по умолчанию запрещены" sh -c 'ufw status verbose | grep -q "Default: deny (incoming)"'
+check "ufw разрешает только 22, 80, 443"          test "$(ufw_ports)" = "22/tcp 443/tcp 80/tcp "
+check "DOCKER-USER режет всё, кроме 80/443"       sh -c 'iptables -S DOCKER-USER | grep -q -- "-j DROP"'
+check "root: вход по паролю запрещён"             sh -c 'sshd -T | grep -Eqx "permitrootlogin (prohibit-password|without-password)"'
+check "X11-форвардинг выключен"                   sh -c 'sshd -T | grep -qx "x11forwarding no"'
+check "git: TCP-форвардинг запрещён"              sh -c 'sshd -T -C user=git,host=x,addr=203.0.113.1 | grep -qx "allowtcpforwarding no"'
+check "git: shell = git-shell"                    test "$(getent passwd git | cut -d: -f7)" = /usr/bin/git-shell
+check "fail2ban: jail sshd работает"              fail2ban-client status sshd
+check ".env: root, 600"                           test "$(stat -c '%U %a' /opt/fitcoach/shared/.env 2>/dev/null)" = "root 600"
+check "db здоров"                                 health db
+check "backend здоров"                            health backend
+check "edge здоров"                               health edge
+check "db без опубликованных портов"              no_ports db
+check "backend без опубликованных портов"         no_ports backend
+check "HTTPS отвечает 200"                        sh -c "curl -fsSk -o /dev/null --max-time 10 --resolve '$DOMAIN:443:127.0.0.1' 'https://$DOMAIN/'"
+check "HSTS включён"                              sh -c "curl -sSIk --max-time 10 --resolve '$DOMAIN:443:127.0.0.1' 'https://$DOMAIN/' | grep -qi '^strict-transport-security:'"
+check "сертификат доверенный (Let's Encrypt)"     curl -fsS -o /dev/null --max-time 10 --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/"
+check "HTTP перенаправляет на HTTPS"              test "$(curl -s -o /dev/null -w '%{http_code}' -H "Host: $DOMAIN" http://127.0.0.1/)" = 301
+check "CI: fitcoach-ci.path активен"              systemctl is-active fitcoach-ci.path
+check "бэкап: таймер активен"                     systemctl is-active fitcoach-backup.timer
+check "бэкап: есть свежий (<26 ч)"                sh -c 'find /var/backups/fitcoach -mindepth 1 -maxdepth 1 -type d -mmin -1560 | grep -q .'
+check "certbot.timer активен"                     systemctl is-active certbot.timer
+check "swap ≥ 2 ГБ"                               sh -c "free -b | awk '/^Swap:/ {exit !(\$2 >= 2000000000)}'"
+check "остатков VPN-ноды нет"                     sh -c '! docker ps -a --format "{{.Names}}" | grep -Eq "caddy|remnawave"'
+
+echo "---"
+echo "проверок провалено: $fails"
+exit "$fails"

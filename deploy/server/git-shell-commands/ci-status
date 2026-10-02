@@ -1,0 +1,15 @@
+#!/bin/sh
+# ssh git@<сервер> ci-status        — последние 10 прогонов CI
+# ssh git@<сервер> ci-status <id>   — хвост лога прогона
+LOGDIR=/var/log/fitcoach-ci
+if [ -n "$1" ]; then
+  if ! printf '%s' "$1" | grep -Eqx '[0-9]{10}-[0-9a-f]{8}'; then
+    echo "неверный id" >&2
+    exit 1
+  fi
+  tail -n 200 "$LOGDIR/$1.log"
+  exit 0
+fi
+ls -1t "$LOGDIR"/*.status 2>/dev/null | head -n 10 | while read -r f; do
+  printf '%s  %s\n' "$(basename "$f" .status)" "$(cat "$f")"
+done

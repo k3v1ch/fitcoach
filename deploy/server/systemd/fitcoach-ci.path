@@ -1,0 +1,9 @@
+[Unit]
+Description=FitCoach CI: очередь заданий от git-хука
+
+[Path]
+PathExistsGlob=/var/spool/fitcoach-ci/*.job
+Unit=fitcoach-ci.service
+
+[Install]
+WantedBy=multi-user.target

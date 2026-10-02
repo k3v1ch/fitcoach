@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# TLS для edge ФитКоуч.
+#   fitcoach-cert link       — сертификат Let's Encrypt, если он есть, иначе самоподписанный; перечитать nginx
+#   fitcoach-cert link-only  — то же без перечитывания (вызывает fitcoach-deploy)
+#   fitcoach-cert issue      — выпустить сертификат Let's Encrypt (webroot через edge), затем link
+set -Eeuo pipefail
+
+ENV_FILE=/opt/fitcoach/shared/.env
+TLS_DIR=/opt/fitcoach/shared/tls
+WEBROOT=/var/www/certbot
+
+domain() {
+  local d
+  d=$(sed -n 's/^DOMAIN=//p' "$ENV_FILE" | tail -n 1)
+  [[ $d =~ ^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$ ]] || { echo "fitcoach-cert: некорректный DOMAIN в $ENV_FILE" >&2; exit 1; }
+  printf '%s\n' "$d"
+}
+
+reload_edge() {
+  if docker ps --format '{{.Names}}' | grep -qx fitcoach-edge-1; then
+    docker exec fitcoach-edge-1 nginx -s reload
+  fi
+}
+
+link() {
+  local d live
+  d=$(domain)
+  live=/etc/letsencrypt/live/$d
+  install -d -m 0700 "$TLS_DIR"
+  if [[ -f $live/fullchain.pem && -f $live/privkey.pem ]]; then
+    ln -sfn "$live/fullchain.pem" "$TLS_DIR/fullchain.pem"
+    ln -sfn "$live/privkey.pem" "$TLS_DIR/privkey.pem"
+    echo "fitcoach-cert: сертификат Let's Encrypt для $d"
+  else
+    if [[ ! -f $TLS_DIR/selfsigned-fullchain.pem ]]; then
+      openssl req -x509 -nodes -newkey rsa:2048 -days 365 -subj "/CN=$d" -addext "subjectAltName=DNS:$d" \
+        -keyout "$TLS_DIR/selfsigned-privkey.pem" -out "$TLS_DIR/selfsigned-fullchain.pem" 2>/dev/null
+      chmod 0600 "$TLS_DIR/selfsigned-privkey.pem"
+    fi
+    ln -sfn selfsigned-fullchain.pem "$TLS_DIR/fullchain.pem"
+    ln -sfn selfsigned-privkey.pem "$TLS_DIR/privkey.pem"
+    echo "fitcoach-cert: Let's Encrypt ещё нет — временный самоподписанный сертификат для $d"
+  fi
+}
+
+issue() {
+  local d
+  d=$(domain)
+  install -d -m 0755 "$WEBROOT"
+  certbot certonly --webroot -w "$WEBROOT" -d "$d" \
+    --non-interactive --agree-tos --register-unsafely-without-email --keep-until-expiring
+  link
+  reload_edge
+}
+
+case "${1:-}" in
+  link) link; reload_edge ;;
+  link-only) link ;;
+  issue) issue ;;
+  *) echo "usage: fitcoach-cert link|link-only|issue" >&2; exit 2 ;;
+esac

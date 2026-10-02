@@ -1,0 +1,9 @@
+# ФитКоуч: бан за подбор пароля SSH — час, повторно дольше (до недели).
+[sshd]
+enabled = true
+maxretry = 5
+findtime = 10m
+bantime = 1h
+bantime.increment = true
+bantime.factor = 2
+bantime.maxtime = 1w

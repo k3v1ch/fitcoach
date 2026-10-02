@@ -1,0 +1,115 @@
+# Прод-стек ИС «ФитКоуч». Запускается скриптом fitcoach-deploy:
+#   IMAGE_TAG=<sha12> docker compose -p fitcoach --env-file /opt/fitcoach/shared/.env \
+#     -f deploy/docker-compose.yml up -d
+# Наружу публикуется только edge (80/443); db и backend доступны лишь внутри сетей Docker.
+name: fitcoach
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:?DATABASE_NAME is required}
+      POSTGRES_USER: ${DATABASE_USERNAME:?DATABASE_USERNAME is required}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD is required}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks: [data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 384m
+    security_opt: ["no-new-privileges:true"]
+
+  files-perms:
+    # Том с загрузками принадлежит непривилегированному пользователю backend (uid 10001).
+    image: alpine:3.20
+    command: ["chown", "-R", "10001:10001", "/data"]
+    volumes:
+      - files:/data
+    network_mode: none
+    restart: "no"
+
+  backend:
+    image: fitcoach.local/backend:${IMAGE_TAG:-dev}
+    build:
+      context: ../backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      files-perms:
+        condition: service_completed_successfully
+    user: "10001:10001"
+    environment:
+      DATABASE_URL: jdbc:postgresql://db:5432/${DATABASE_NAME}
+      DATABASE_USERNAME: ${DATABASE_USERNAME}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      SESSION_COOKIE_SECURE: "true"
+      FILES_ROOT: /app/data/files
+      PUBLIC_BASE_URL: https://${DOMAIN:?DOMAIN is required}
+      # Реальный IP клиента и схема https из заголовков edge (для лимитов и ссылок бэкенда).
+      SERVER_FORWARD_HEADERS_STRATEGY: native
+      SMTP_HOST: ${SMTP_HOST:-localhost}
+      SMTP_PORT: ${SMTP_PORT:-25}
+      SMTP_AUTH: ${SMTP_AUTH:-false}
+      SMTP_SSL_ENABLE: ${SMTP_SSL_ENABLE:-false}
+      SMTP_STARTTLS_ENABLE: ${SMTP_STARTTLS_ENABLE:-false}
+      SMTP_STARTTLS_REQUIRED: ${SMTP_STARTTLS_REQUIRED:-false}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@sports-organization.local}
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=70 -XX:+UseSerialGC"
+    volumes:
+      - files:/app/data/files
+    networks: [data, web]
+    healthcheck:
+      # /v3/api-docs не создаёт HTTP-сессию, в отличие от /api/v1/me.
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:8080/v3/api-docs"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 150s
+    mem_limit: 768m
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+
+  edge:
+    image: fitcoach.local/edge:${IMAGE_TAG:-dev}
+    build:
+      context: ..
+      dockerfile: deploy/edge/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      DOMAIN: ${DOMAIN}
+      NGINX_ENVSUBST_FILTER: "^DOMAIN$$"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /opt/fitcoach/shared/tls:/etc/nginx/tls:ro
+      - /opt/fitcoach/shared/nginx:/etc/nginx/shared:ro
+      - /var/www/certbot:/var/www/certbot:ro
+    networks: [web]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    mem_limit: 128m
+    security_opt: ["no-new-privileges:true"]
+
+networks:
+  data:
+    internal: true   # у БД нет выхода в интернет
+  web: {}
+
+volumes:
+  pgdata:
+  files:

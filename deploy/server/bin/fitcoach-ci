@@ -6,6 +6,8 @@
 # Теги образов — по содержимому (как в fitcoach-deploy): неизменённое не пересобирается,
 # а тесты бэкенда не повторяются для уже проверенного кода backend/.
 # Флаг /opt/fitcoach/shared/ci-skip-tests временно отключает тесты (с предупреждением).
+# Коммиты с символическими ссылками не принимаются: через ссылку вместо Dockerfile
+# root-процесс сборки прочитал бы файл сервера и вывел его в лог, доступный пользователю git.
 set -Euo pipefail
 
 GIT_DIR=/home/git/Iinformation-system/.git
@@ -48,7 +50,8 @@ backend_tests() {  # backend_tests <id> <каталог backend>
   docker network create "$net" >/dev/null || return 1
   docker run -d --name "$net-db" --network "$net" --network-alias db --memory 256m \
     -e POSTGRES_DB=ci -e POSTGRES_USER=ci -e POSTGRES_PASSWORD=ci \
-    --tmpfs /var/lib/postgresql/data postgres:16-alpine >/dev/null || return 1
+    --tmpfs /var/lib/postgresql/data postgres:16-alpine >/dev/null ||
+    { docker network rm "$net" >/dev/null 2>&1; return 1; }
   for _ in $(seq 1 45); do
     docker exec "$net-db" pg_isready -h 127.0.0.1 -U ci -d ci >/dev/null 2>&1 && break
     sleep 2
@@ -65,9 +68,11 @@ backend_tests() {  # backend_tests <id> <каталог backend>
 }
 
 run_job() {  # run_job <id> <ref> <sha40>
-  local id=$1 ref=$2 sha=$3 dir=$WORK/$1 started=$SECONDS bt et
+  local id=$1 ref=$2 sha=$3 dir=$WORK/$1 started=$SECONDS bt et link rc
   read -r bt et < <(image_tags "$sha")
   say "▶ ${ref#refs/heads/} @ ${sha:0:12}"
+  link=$(git_ ls-tree -r "$sha" | awk '$1 == "120000" {print $4; exit}')
+  [[ -z $link ]] || { say "✖ в коммите символическая ссылка ($link) — такие коммиты не принимаются"; return 1; }
   rm -rf "$dir"
   install -d -m 0700 "$dir"
   git_ archive "$sha" | tar -x -C "$dir" || { say "✖ не удалось получить коммит"; return 1; }
@@ -107,8 +112,13 @@ run_job() {  # run_job <id> <ref> <sha40>
 
   if [[ $ref == "$DEPLOY_REF" ]]; then
     say "▶ выкладка на прод"
-    timeout 20m /usr/local/sbin/fitcoach-deploy "$sha" ||
-      { say "✖ выкладка не удалась, прод остался на прежней версии"; return 1; }
+    timeout 20m /usr/local/sbin/fitcoach-deploy "$sha"
+    rc=$?
+    case $rc in
+      0) ;;
+      1) say "✖ выкладка не удалась; прод на прежней версии (автоматический откат)"; return 1 ;;
+      *) say "✖ выкладка не удалась, откат не выполнен (код $rc) — прод может быть недоступен, сообщите DevOps"; return 1 ;;
+    esac
   else
     # Для веток образы — только проверка сборки: убираем всё, что не нужно релизам
     /usr/local/sbin/fitcoach-deploy --cleanup >/dev/null 2>&1 || true
@@ -144,6 +154,21 @@ process() {  # process <файл задания>
   rm -rf "${WORK:?}/$id"
   if (( rc == 0 )); then write_status "$status" OK "$ref" "$sha"; else write_status "$status" FAIL "$ref" "$sha"; fi
 }
+
+recover_interrupted() {  # прерванный прогон (перезагрузка, systemctl stop) оставляет временную БД, сеть и лог без итога
+  local log
+  docker ps -aq --filter 'name=^fitcoach-ci-' | xargs -r docker rm -f >/dev/null 2>&1 || true
+  docker network ls -q --filter 'name=^fitcoach-ci-' | xargs -r docker network rm >/dev/null 2>&1 || true
+  find "$WORK" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || true
+  for log in "$LOGDIR"/*.log; do
+    [[ -e $log && ! -e ${log%.log}.status ]] || continue
+    say "✖ прогон прерван (перезагрузка сервера или остановка CI) — запушьте ещё раз" >> "$log"
+    write_status "${log%.log}.status" FAIL "?" "?"
+  done
+}
+
+# Работает только один воркер (flock выше), значит всё оставшееся от прошлых прогонов — мусор
+recover_interrupted
 
 while :; do
   mapfile -t jobs < <(find "$SPOOL" -maxdepth 1 -type f -name '*.job' | sort)

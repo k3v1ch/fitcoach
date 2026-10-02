@@ -1,9 +1,13 @@
-import { api, fetchCsrf } from './index'
+import { api, fetchCsrf, resetCsrf } from './index'
 
 export const authApi = {
   async login(email, password) {
     await fetchCsrf()
-    return api.post('/auth/login', { email, password })
+    const user = await api.post('/auth/login', { email, password })
+    // Вход меняет сессию и её CSRF-токен; в заголовке ответа он «сырой», а сервер принимает
+    // только маскированный из GET /auth/csrf — следующий запрос на запись возьмёт его заново.
+    resetCsrf()
+    return user
   },
   logout() {
     return api.post('/auth/logout')

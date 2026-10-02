@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Установка серверной части ФитКоуч (под root, из каталога репозитория):
-#   deploy/server/install.sh base      — скрипты, systemd-юниты, git-хуки, каталоги
+#   deploy/server/install.sh base      — скрипты, compose-файл, systemd-юниты, git-хуки, каталоги
 #   deploy/server/install.sh firewall  — ufw (только 22/80/443) и фильтр DOCKER-USER
 #   deploy/server/install.sh ssh       — усиление sshd, git-shell для git (fail2ban настраивается в /etc/fail2ban/jail.local)
 # Повторный запуск безопасен.
@@ -19,6 +19,9 @@ base() {
   local allow=/opt/fitcoach/shared/nginx/ratelimit-allow.conf
   [[ -f $allow ]] || printf '%s\n' '# IP без ограничения частоты запросов (например, для нагрузочного теста), формат nginx geo:' '# 203.0.113.10 1;' > "$allow"
   install -m 0755 "$HERE"/bin/fitcoach-* /usr/local/sbin/
+  # Compose-файл прода — только этот, установленный root-ом: файл из пушнутого коммита задавал бы
+  # монтирования и привилегии контейнеров, то есть давал бы root на сервере через git push
+  install -D -m 0644 "$HERE"/../docker-compose.yml /opt/fitcoach/compose/docker-compose.yml
   install -m 0644 "$HERE"/systemd/fitcoach-* /etc/systemd/system/
   install -m 0755 -o root -g git "$HERE"/hooks/post-receive "$HERE"/hooks/update "$REPO/.git/hooks/"
   install -d -m 0755 -o root -g git /home/git/git-shell-commands

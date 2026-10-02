@@ -53,6 +53,9 @@ export function clearSession() {
 export async function logout() {
   try {
     await authApi.logout()
+  } catch (e) {
+    // 401: серверная сессия уже закончилась — выход по сути выполнен
+    if (e.status !== 401) throw e
   } finally {
     clearSession()
   }

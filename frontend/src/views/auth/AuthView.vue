@@ -86,7 +86,7 @@ import BaseButton from '../../components/ui/BaseButton.vue'
 import BaseInput from '../../components/ui/BaseInput.vue'
 import AuthTabs from '../../components/auth/AuthTabs.vue'
 import { authApi } from '../../api/auth'
-import { loadSession } from '../../utils/session'
+import { loadSession, homePath } from '../../utils/session'
 
 const router = useRouter()
 
@@ -132,12 +132,10 @@ async function handleLogin() {
   try {
     await authApi.login(form.email, form.password)
     await loadSession()
-    const user = await authApi.me()
-    const org = user.organizations?.[0]
-    if (org?.roles?.includes('TRAINER')) router.push('/trainer/dashboard')
-    else if (org?.roles?.includes('PARENT')) router.push('/parent')
-    else if (org?.roles?.includes('ATHLETE')) router.push('/athlete')
-    else router.push('/no-access')
+    // next — страница, с которой отправили на вход; только локальные пути
+    const next = router.currentRoute.value.query.next
+    const safeNext = typeof next === 'string' && next.startsWith('/') && !next.startsWith('//')
+    router.push(safeNext ? next : homePath())
   } catch (e) {
     errorMessage.value = e.message
   } finally {
@@ -172,9 +170,13 @@ async function handleRecovery() {
 }
 
 onMounted(() => {
-  if (router.currentRoute.value.query.registered === '1') {
+  const query = router.currentRoute.value.query
+  if (query.registered === '1') {
     currentTab.value = 'login'
     infoMessage.value = 'Регистрация завершена. Войдите с новым паролем.'
+  } else if (query.reset === '1') {
+    currentTab.value = 'login'
+    infoMessage.value = 'Пароль изменён. Войдите с новым паролем.'
   }
 })
 </script>

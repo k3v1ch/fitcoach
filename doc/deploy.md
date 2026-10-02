@@ -120,6 +120,8 @@ ssh git@fitcoach.keldari.online ci-status <id> # хвост лога прого�
 fitcoach-deploy --status        # текущий релиз, история, контейнеры
 fitcoach-deploy <sha40>         # выложить конкретный коммит
 fitcoach-deploy --rollback      # вернуть предыдущий релиз
+fitcoach-deploy --tags <sha40>  # теги образов коммита: что пересоберётся и перезапустится
+fitcoach-deploy --cleanup       # убрать старые релизы и неиспользуемые образы
 touch /opt/fitcoach/shared/ci-skip-tests   # временно выкладывать без тестов (удалить файл после!)
 ```
 

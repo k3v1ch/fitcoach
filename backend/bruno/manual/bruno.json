@@ -1,0 +1,10 @@
+{
+  "version": "1",
+  "name": "Sports Organization — manual",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git",
+    "reports"
+  ]
+}

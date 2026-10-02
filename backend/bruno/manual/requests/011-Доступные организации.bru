@@ -1,0 +1,22 @@
+meta {
+  name: Доступные организации
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/api/v1/organizations
+  body: none
+  auth: none
+}
+
+tests {
+  test("HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

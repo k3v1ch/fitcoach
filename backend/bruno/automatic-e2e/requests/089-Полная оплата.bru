@@ -1,0 +1,47 @@
+meta {
+  name: Полная оплата
+  type: http
+  seq: 89
+}
+
+post {
+  url: {{baseUrl}}/api/v1/organizations/{{organizationId}}/payments
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-TOKEN: {{csrfToken}}
+  Idempotency-Key: {{paymentKey}}-full
+}
+
+script:pre-request {
+  if (!bru.getVar('csrfToken')) throw new Error('Сначала выполните GET auth/csrf в этой коллекции.');
+  
+}
+
+body:json {
+  {
+    "chargeId": "{{chargeId}}",
+    "amount": 600,
+    "paidOn": "{{today}}",
+    "method": "CASH",
+    "comment": "Bruno"
+  }
+}
+
+tests {
+  test("HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Поле amount", function () {
+    expect(res.getBody().amount).to.equal(600);
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

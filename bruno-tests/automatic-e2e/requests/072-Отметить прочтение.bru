@@ -1,0 +1,31 @@
+meta {
+  name: Отметить прочтение
+  type: http
+  seq: 72
+}
+
+put {
+  url: {{baseUrl}}/api/v1/organizations/{{organizationId}}/announcements/{{announcementId}}/read
+  body: none
+  auth: none
+}
+
+headers {
+  X-CSRF-TOKEN: {{csrfToken}}
+}
+
+script:pre-request {
+  if (!bru.getVar('csrfToken')) throw new Error('Сначала выполните GET auth/csrf в этой коллекции.');
+  
+}
+
+tests {
+  test("HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

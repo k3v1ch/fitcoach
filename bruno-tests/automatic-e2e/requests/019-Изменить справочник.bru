@@ -1,0 +1,46 @@
+meta {
+  name: Изменить справочник
+  type: http
+  seq: 19
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/organizations/{{organizationId}}/dictionaries/venues/{{venueId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-TOKEN: {{csrfToken}}
+}
+
+script:pre-request {
+  if (!bru.getVar('csrfToken')) throw new Error('Сначала выполните GET auth/csrf в этой коллекции.');
+  
+}
+
+body:json {
+  {
+    "name": "Venue {{runId}}",
+    "address": "Новый адрес",
+    "description": "Bruno updated",
+    "sortOrder": 1,
+    "status": "ACTIVE"
+  }
+}
+
+tests {
+  test("HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Поле address", function () {
+    expect(res.getBody().address).to.equal('Новый адрес');
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

@@ -1,0 +1,63 @@
+meta {
+  name: Создать будущую тренировку
+  type: http
+  seq: 49
+}
+
+post {
+  url: {{baseUrl}}/api/v1/organizations/{{organizationId}}/trainings
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-TOKEN: {{csrfToken}}
+}
+
+script:pre-request {
+  if (!bru.getVar('csrfToken')) throw new Error('Сначала выполните GET auth/csrf в этой коллекции.');
+  
+}
+
+body:json {
+  {
+    "title": "Training {{runId}}",
+    "groupId": "{{groupId}}",
+    "coachIds": [
+      "{{userId}}"
+    ],
+    "venueId": "{{venueId}}",
+    "typeId": "{{typeId}}",
+    "startsAt": "{{futureStart}}",
+    "endsAt": "{{futureEnd}}",
+    "plan": [
+      {
+        "title": "Разминка",
+        "durationMinutes": 10,
+        "description": "Bruno"
+      }
+    ]
+  }
+}
+
+script:post-response {
+  if (res.getStatus() >= 200 && res.getStatus() < 300) {
+    bru.setVar('futureTrainingId', res.getBody().id);
+  }
+}
+
+tests {
+  test("HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Поле status", function () {
+    expect(res.getBody().status).to.equal('PLANNED');
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

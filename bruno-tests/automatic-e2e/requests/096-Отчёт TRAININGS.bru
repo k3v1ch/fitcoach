@@ -1,0 +1,30 @@
+meta {
+  name: Отчёт TRAININGS
+  type: http
+  seq: 96
+}
+
+get {
+  url: {{baseUrl}}/api/v1/organizations/{{organizationId}}/reports/TRAININGS?from={{fromDate}}&to={{toDate}}&page=0&size=20
+  body: none
+  auth: none
+}
+
+tests {
+  test("HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Таблица отчёта", function () {
+    const b=res.getBody();
+    expect(b.type).to.equal('TRAININGS');
+    expect(b.rows).to.be.an('array');
+    expect(b.columns).to.be.an('array');
+    expect(b.totalElements).to.be.at.least(b.rows.length);
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

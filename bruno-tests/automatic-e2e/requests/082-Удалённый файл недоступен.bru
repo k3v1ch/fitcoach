@@ -1,0 +1,30 @@
+meta {
+  name: Удалённый файл недоступен
+  type: http
+  seq: 82
+}
+
+get {
+  url: {{baseUrl}}/api/v1/organizations/{{organizationId}}/files/{{fileId}}/content
+  body: none
+  auth: none
+}
+
+tests {
+  test("HTTP 404", function () {
+    expect(res.getStatus()).to.equal(404);
+  });
+  
+  test("Структура ошибки API", function () {
+    const b = res.getBody();
+    expect(b.code).to.be.a('string').and.not.empty;
+    expect(b.message).to.be.a('string').and.not.empty;
+    expect(b.fieldErrors).to.be.an('array');
+    expect(b.requestId).to.be.a('string').and.not.empty;
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

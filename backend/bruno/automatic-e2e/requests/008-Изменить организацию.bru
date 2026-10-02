@@ -1,0 +1,42 @@
+meta {
+  name: Изменить организацию
+  type: http
+  seq: 8
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/organizations/{{organizationId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-TOKEN: {{csrfToken}}
+}
+
+script:pre-request {
+  if (!bru.getVar('csrfToken')) throw new Error('Сначала выполните GET auth/csrf в этой коллекции.');
+  
+}
+
+body:json {
+  {
+    "description": "Bruno updated"
+  }
+}
+
+tests {
+  test("HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Поле description", function () {
+    expect(res.getBody().description).to.equal('Bruno updated');
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

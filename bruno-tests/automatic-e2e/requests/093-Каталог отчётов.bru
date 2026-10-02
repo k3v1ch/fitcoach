@@ -1,0 +1,26 @@
+meta {
+  name: Каталог отчётов
+  type: http
+  seq: 93
+}
+
+get {
+  url: {{baseUrl}}/api/v1/organizations/{{organizationId}}/reports/types
+  body: none
+  auth: none
+}
+
+tests {
+  test("HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Четыре типа отчётов", function () {
+    expect(res.getBody().map(x=>x.type)).to.have.members(['ATTENDANCE','TRAININGS','PROGRESS','CHARGES']);
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

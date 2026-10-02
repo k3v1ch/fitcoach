@@ -1,0 +1,32 @@
+meta {
+  name: Текущий профиль
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/me
+  body: none
+  auth: none
+}
+
+tests {
+  test("HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Профиль и срок сессии", function () {
+    const b=res.getBody();
+    expect(b.userId).to.match(/^[0-9a-f-]{36}$/i);
+    expect(b.email).to.be.a('string');
+    expect(b.fullName).to.be.a('string').and.not.empty;
+    expect(Date.parse(b.expiresAt)).to.be.above(Date.now());
+    expect(b).not.to.have.property('password');
+    expect(b).not.to.have.property('passwordHash');
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

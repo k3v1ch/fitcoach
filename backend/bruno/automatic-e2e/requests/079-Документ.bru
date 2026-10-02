@@ -1,0 +1,32 @@
+meta {
+  name: Документ
+  type: http
+  seq: 79
+}
+
+get {
+  url: {{baseUrl}}/api/v1/organizations/{{organizationId}}/documents/{{documentId}}
+  body: none
+  auth: none
+}
+
+script:post-response {
+  if (res.getStatus() >= 200 && res.getStatus() < 300) {
+    bru.setVar('documentFileId', res.getBody().file.id);
+  }
+}
+
+tests {
+  test("HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Поле id", function () {
+    expect(res.getBody().id).to.equal(bru.getVar('documentId'));
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

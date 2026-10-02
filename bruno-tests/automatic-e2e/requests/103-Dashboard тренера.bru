@@ -1,0 +1,31 @@
+meta {
+  name: Dashboard тренера
+  type: http
+  seq: 103
+}
+
+get {
+  url: {{baseUrl}}/api/v1/organizations/{{organizationId}}/dashboard?view=TRAINER&from={{fromDate}}&to={{toDate}}
+  body: none
+  auth: none
+}
+
+tests {
+  test("HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Поле organizationId", function () {
+    expect(res.getBody().organizationId).to.equal(bru.getVar('organizationId'));
+  });
+  test("Структура dashboard", function () {
+    expect(res.getBody().counters).to.be.an('object');
+    expect(res.getBody().nextTrainings).to.be.an('array');
+    expect(res.getBody().recentActivities.items).to.be.an('array');
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

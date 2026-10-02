@@ -1,0 +1,22 @@
+meta {
+  name: Участники мероприятия
+  type: http
+  seq: 49
+}
+
+get {
+  url: {{baseUrl}}/api/v1/organizations/{{organizationId}}/events/{{eventId}}/participants
+  body: none
+  auth: none
+}
+
+tests {
+  test("HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

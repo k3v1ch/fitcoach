@@ -1,0 +1,29 @@
+meta {
+  name: Финансовая сводка
+  type: http
+  seq: 92
+}
+
+get {
+  url: {{baseUrl}}/api/v1/organizations/{{organizationId}}/finance/summary?from={{fromDate}}&to={{toDate}}
+  body: none
+  auth: none
+}
+
+tests {
+  test("HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Поле receivedAmount", function () {
+    expect(res.getBody().receivedAmount).to.equal(1000);
+  });
+  test("Поле outstandingAmount", function () {
+    expect(res.getBody().outstandingAmount).to.equal(0);
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

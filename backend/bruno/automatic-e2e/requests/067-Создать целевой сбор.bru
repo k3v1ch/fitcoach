@@ -1,0 +1,53 @@
+meta {
+  name: Создать целевой сбор
+  type: http
+  seq: 67
+}
+
+post {
+  url: {{baseUrl}}/api/v1/organizations/{{organizationId}}/events
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-TOKEN: {{csrfToken}}
+}
+
+script:pre-request {
+  if (!bru.getVar('csrfToken')) throw new Error('Сначала выполните GET auth/csrf в этой коллекции.');
+  
+}
+
+body:json {
+  {
+    "title": "Fundraiser {{runId}}",
+    "type": "FUNDRAISER",
+    "sectionId": "{{sectionId}}",
+    "targetAmount": 1000,
+    "collectionDueOn": "{{dueOn}}",
+    "requiredDocumentTypes": []
+  }
+}
+
+script:post-response {
+  if (res.getStatus() >= 200 && res.getStatus() < 300) {
+    bru.setVar('fundraiserId', res.getBody().id);
+  }
+}
+
+tests {
+  test("HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Поле type", function () {
+    expect(res.getBody().type).to.equal('FUNDRAISER');
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

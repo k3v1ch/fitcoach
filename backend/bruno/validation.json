@@ -1,0 +1,19 @@
+{
+  "checkedAt": "2026-10-02T08:17:32.680Z",
+  "cliVersion": "4.2.0",
+  "requestFiles": 236,
+  "compiledScripts": 411,
+  "counts": {
+    "automatic-public": 15,
+    "automatic-e2e": 118,
+    "manual": 84,
+    "manual-spec": 19
+  },
+  "coverage": {
+    "implementedRoutes": 72,
+    "manualCovered": 72,
+    "missing": []
+  },
+  "failures": [],
+  "liveBackendTested": false
+}

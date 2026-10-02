@@ -1,0 +1,42 @@
+meta {
+  name: Изменить тренировку
+  type: http
+  seq: 40
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/organizations/{{organizationId}}/trainings/{{trainingId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-TOKEN: {{csrfToken}}
+}
+
+script:pre-request {
+  if (!bru.getVar('csrfToken')) throw new Error('Сначала выполните GET auth/csrf в этой коллекции.');
+  
+}
+
+body:json {
+  {
+    "title": "Training updated"
+  }
+}
+
+tests {
+  test("HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Поле title", function () {
+    expect(res.getBody().title).to.equal('Training updated');
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

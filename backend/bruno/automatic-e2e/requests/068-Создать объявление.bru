@@ -1,0 +1,56 @@
+meta {
+  name: Создать объявление
+  type: http
+  seq: 68
+}
+
+post {
+  url: {{baseUrl}}/api/v1/organizations/{{organizationId}}/announcements
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-TOKEN: {{csrfToken}}
+}
+
+script:pre-request {
+  if (!bru.getVar('csrfToken')) throw new Error('Сначала выполните GET auth/csrf в этой коллекции.');
+  
+}
+
+body:json {
+  {
+    "title": "Announcement {{runId}}",
+    "text": "Bruno regression",
+    "category": "GENERAL",
+    "recipientUserIds": [
+      "{{userId}}"
+    ],
+    "requiresResponse": true,
+    "responseDeadline": "{{futureDeadline}}",
+    "attachmentFileIds": []
+  }
+}
+
+script:post-response {
+  if (res.getStatus() >= 200 && res.getStatus() < 300) {
+    bru.setVar('announcementId', res.getBody().id);
+  }
+}
+
+tests {
+  test("HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Поле status", function () {
+    expect(res.getBody().status).to.equal('DRAFT');
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

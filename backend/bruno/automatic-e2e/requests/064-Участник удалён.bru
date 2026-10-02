@@ -1,0 +1,26 @@
+meta {
+  name: Участник удалён
+  type: http
+  seq: 64
+}
+
+get {
+  url: {{baseUrl}}/api/v1/organizations/{{organizationId}}/events/{{eventId}}/participants
+  body: none
+  auth: none
+}
+
+tests {
+  test("HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Нет удалённого участника", function () {
+    expect(res.getBody().map(x=>x.athleteId)).not.to.include(bru.getVar('athleteId'));
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

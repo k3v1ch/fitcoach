@@ -1,0 +1,1654 @@
+[
+  {
+    "collection": "automatic-public",
+    "file": "automatic-public/requests/001-CSRF.bru",
+    "method": "GET",
+    "url": "/api/v1/auth/csrf",
+    "status": 200
+  },
+  {
+    "collection": "automatic-public",
+    "file": "automatic-public/requests/002-Me без авторизации.bru",
+    "method": "GET",
+    "url": "/api/v1/me",
+    "status": 401
+  },
+  {
+    "collection": "automatic-public",
+    "file": "automatic-public/requests/003-Регистрация без CSRF.bru",
+    "method": "POST",
+    "url": "/api/v1/auth/register",
+    "status": 403
+  },
+  {
+    "collection": "automatic-public",
+    "file": "automatic-public/requests/004-Регистрация с неверным CSRF.bru",
+    "method": "POST",
+    "url": "/api/v1/auth/register",
+    "status": 403
+  },
+  {
+    "collection": "automatic-public",
+    "file": "automatic-public/requests/005-Невалидный email.bru",
+    "method": "POST",
+    "url": "/api/v1/auth/register",
+    "status": 400
+  },
+  {
+    "collection": "automatic-public",
+    "file": "automatic-public/requests/006-Лишнее поле регистрации.bru",
+    "method": "POST",
+    "url": "/api/v1/auth/register",
+    "status": 400
+  },
+  {
+    "collection": "automatic-public",
+    "file": "automatic-public/requests/007-Лишнее поле login.bru",
+    "method": "POST",
+    "url": "/api/v1/auth/login",
+    "status": 400
+  },
+  {
+    "collection": "automatic-public",
+    "file": "automatic-public/requests/008-Подтверждение без имени.bru",
+    "method": "POST",
+    "url": "/api/v1/auth/register/confirm",
+    "status": 400
+  },
+  {
+    "collection": "automatic-public",
+    "file": "automatic-public/requests/009-Подтверждение с коротким паролем.bru",
+    "method": "POST",
+    "url": "/api/v1/auth/register/confirm",
+    "status": 400
+  },
+  {
+    "collection": "automatic-public",
+    "file": "automatic-public/requests/010-Невалидный токен регистрации.bru",
+    "method": "POST",
+    "url": "/api/v1/auth/register/confirm",
+    "status": 400
+  },
+  {
+    "collection": "automatic-public",
+    "file": "automatic-public/requests/011-Сброс с невалидным email.bru",
+    "method": "POST",
+    "url": "/api/v1/auth/password-reset/request",
+    "status": 400
+  },
+  {
+    "collection": "automatic-public",
+    "file": "automatic-public/requests/012-Невалидный токен сброса.bru",
+    "method": "POST",
+    "url": "/api/v1/auth/password-reset/confirm",
+    "status": 400
+  },
+  {
+    "collection": "automatic-public",
+    "file": "automatic-public/requests/013-Пароль сброса длиннее 128.bru",
+    "method": "POST",
+    "url": "/api/v1/auth/password-reset/confirm",
+    "status": 400
+  },
+  {
+    "collection": "automatic-public",
+    "file": "automatic-public/requests/014-Login без пароля.bru",
+    "method": "POST",
+    "url": "/api/v1/auth/login",
+    "status": 400
+  },
+  {
+    "collection": "automatic-public",
+    "file": "automatic-public/requests/015-Организации без сессии.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations",
+    "status": 401
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/001-CSRF и переменные прогона.bru",
+    "method": "GET",
+    "url": "/api/v1/auth/csrf",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/002-Вход.bru",
+    "method": "POST",
+    "url": "/api/v1/auth/login",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/003-Новый CSRF после входа.bru",
+    "method": "GET",
+    "url": "/api/v1/auth/csrf",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/004-Текущий профиль.bru",
+    "method": "GET",
+    "url": "/api/v1/me",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/005-Создать тестовую организацию.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations",
+    "status": 201
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/006-Доступные организации.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/007-Организация.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/008-Изменить организацию.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/009-Неверная timezone.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}",
+    "status": 400
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/010-Пустой PATCH организации.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}",
+    "status": 400
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/011-Участники.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/members?page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/012-Неверная пагинация участников.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/members?size=101",
+    "status": 400
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/013-Создать sport-types.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/dictionaries/sport-types",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/014-Список sport-types.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/dictionaries/sport-types?page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/015-Создать training-types.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/dictionaries/training-types",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/016-Список training-types.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/dictionaries/training-types?page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/017-Создать venues.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/dictionaries/venues",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/018-Список venues.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/dictionaries/venues?page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/019-Изменить справочник.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}/dictionaries/venues/{{venueId}}",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/020-Дубликат справочника.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/dictionaries/sport-types",
+    "status": 400
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/021-Неизвестный справочник.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/dictionaries/unknown",
+    "status": 400
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/022-Создать спортсмена.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/athletes",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/023-Спортсмен.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/athletes/{{athleteId}}",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/024-Изменить спортсмена.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}/athletes/{{athleteId}}",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/025-Список спортсменов.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/athletes?q=Bruno&page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/026-Пустой PATCH спортсмена.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}/athletes/{{athleteId}}",
+    "status": 400
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/027-Невалидный спортсмен.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/athletes",
+    "status": 400
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/028-Создать секцию.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/sections",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/029-Список секций.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/sections?page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/030-Изменить секцию.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}/sections/{{sectionId}}",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/031-Создать группу.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/groups",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/032-Список групп.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/groups?page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/033-Изменить группу.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}/groups/{{groupId}}",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/034-Зачислить спортсмена.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/groups/{{groupId}}/athletes",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/035-Повторное зачисление.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/groups/{{groupId}}/athletes",
+    "status": 400
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/036-Состав группы.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/groups/{{groupId}}?includeFormer=true",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/037-Создать прошедшую тренировку.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/trainings",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/038-Тренировки за период.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/trainings?from={{fromInstant}}&to={{toInstant}}&page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/039-Тренировка.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/trainings/{{trainingId}}",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/040-Изменить тренировку.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}/trainings/{{trainingId}}",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/041-Отметить посещаемость.bru",
+    "method": "PUT",
+    "url": "/api/v1/organizations/{{organizationId}}/trainings/{{trainingId}}/attendance",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/042-Черновик отчёта.bru",
+    "method": "PUT",
+    "url": "/api/v1/organizations/{{organizationId}}/trainings/{{trainingId}}/report",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/043-Закрыть отчёт.bru",
+    "method": "PUT",
+    "url": "/api/v1/organizations/{{organizationId}}/trainings/{{trainingId}}/report",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/044-Тренировка завершена.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/trainings/{{trainingId}}",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/045-Отчёт после закрытия.bru",
+    "method": "PUT",
+    "url": "/api/v1/organizations/{{organizationId}}/trainings/{{trainingId}}/report",
+    "status": 400
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/046-Посещаемость после закрытия.bru",
+    "method": "PUT",
+    "url": "/api/v1/organizations/{{organizationId}}/trainings/{{trainingId}}/attendance",
+    "status": 400
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/047-Изменение завершённой тренировки.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}/trainings/{{trainingId}}",
+    "status": 400
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/048-Невалидные даты тренировки.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/trainings",
+    "status": 400
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/049-Создать будущую тренировку.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/trainings",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/050-Раннее закрытие отчёта.bru",
+    "method": "PUT",
+    "url": "/api/v1/organizations/{{organizationId}}/trainings/{{futureTrainingId}}/report",
+    "status": 400
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/051-Отмена без причины.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}/trainings/{{futureTrainingId}}",
+    "status": 400
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/052-Отменить будущую тренировку.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}/trainings/{{futureTrainingId}}",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/053-Создать результат.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/athletes/{{athleteId}}/results",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/054-Список результатов.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/athletes/{{athleteId}}/results?page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/055-Изменить результат.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}/athletes/{{athleteId}}/results/{{resultId}}",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/056-standards.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/athletes/{{athleteId}}/standards?page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/057-ranks.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/athletes/{{athleteId}}/ranks?page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/058-Создать мероприятие.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/events",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/059-Мероприятия.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/events?page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/060-Мероприятие.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/events/{{eventId}}",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/061-Добавить участника.bru",
+    "method": "PUT",
+    "url": "/api/v1/organizations/{{organizationId}}/events/{{eventId}}/participants",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/062-Участники мероприятия.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/events/{{eventId}}/participants",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/063-Удалить участника.bru",
+    "method": "DELETE",
+    "url": "/api/v1/organizations/{{organizationId}}/events/{{eventId}}/participants/{{athleteId}}",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/064-Участник удалён.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/events/{{eventId}}/participants",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/065-Опубликовать мероприятие.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}/events/{{eventId}}",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/066-Редактирование после публикации.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}/events/{{eventId}}",
+    "status": 400
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/067-Создать целевой сбор.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/events",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/068-Создать объявление.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/announcements",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/069-Опубликовать объявление.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}/announcements/{{announcementId}}?status=PUBLISHED",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/070-Объявления.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/announcements?page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/071-Объявление.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/announcements/{{announcementId}}",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/072-Отметить прочтение.bru",
+    "method": "PUT",
+    "url": "/api/v1/organizations/{{organizationId}}/announcements/{{announcementId}}/read",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/073-Ответить на объявление.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/announcements/{{announcementId}}/responses",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/074-Редактирование опубликованного объявления.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}/announcements/{{announcementId}}?status=PUBLISHED",
+    "status": 400
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/075-Загрузить вложение.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/files",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/076-Неподдерживаемый файл.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/files",
+    "status": 400
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/077-Загрузить документ.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/documents",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/078-Документы.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/documents?page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/079-Документ.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/documents/{{documentId}}",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/080-Скачать файл документа.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/files/{{documentFileId}}/content",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/081-Удалить свободное вложение.bru",
+    "method": "DELETE",
+    "url": "/api/v1/organizations/{{organizationId}}/files/{{fileId}}",
+    "status": 204
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/082-Удалённый файл недоступен.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/files/{{fileId}}/content",
+    "status": 404
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/083-Создать начисление.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/charges",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/084-Нулевая сумма начисления.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/charges",
+    "status": 400
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/085-Частичный платёж.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/payments",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/086-Повтор платежа с тем же ключом.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/payments",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/087-Остаток после повтора.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/charges/{{chargeId}}",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/088-Переплата.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/payments",
+    "status": 400
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/089-Полная оплата.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/payments",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/090-Начисление оплачено.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/charges/{{chargeId}}",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/091-Платежи начисления.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/payments?chargeId={{chargeId}}&page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/092-Финансовая сводка.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/finance/summary?from={{fromDate}}&to={{toDate}}",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/093-Каталог отчётов.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/reports/types",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/094-Отчёт ATTENDANCE.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/reports/ATTENDANCE?from={{fromDate}}&to={{toDate}}&page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/095-Экспорт ATTENDANCE CSV.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/reports/ATTENDANCE/export?format=CSV&from={{fromDate}}&to={{toDate}}",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/096-Отчёт TRAININGS.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/reports/TRAININGS?from={{fromDate}}&to={{toDate}}&page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/097-Экспорт TRAININGS CSV.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/reports/TRAININGS/export?format=CSV&from={{fromDate}}&to={{toDate}}",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/098-Отчёт PROGRESS.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/reports/PROGRESS?from={{fromDate}}&to={{toDate}}&page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/099-Экспорт PROGRESS CSV.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/reports/PROGRESS/export?format=CSV&from={{fromDate}}&to={{toDate}}",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/100-Отчёт CHARGES.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/reports/CHARGES?from={{fromDate}}&to={{toDate}}&page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/101-Экспорт CHARGES CSV.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/reports/CHARGES/export?format=CSV&from={{fromDate}}&to={{toDate}}",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/102-Неподдерживаемый экспорт PDF.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/reports/TRAININGS/export?format=PDF&from={{fromDate}}&to={{toDate}}",
+    "status": 400
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/103-Dashboard тренера.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/dashboard?view=TRAINER&from={{fromDate}}&to={{toDate}}",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/104-Создать вторую организацию.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations",
+    "status": 201
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/105-Создать спортсмена другой организации.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{otherOrganizationId}}/athletes",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/106-Чужой спортсмен в первой организации.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/athletes/{{foreignAthleteId}}",
+    "status": 404
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/107-Своя карточка через другую организацию.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{otherOrganizationId}}/athletes/{{athleteId}}",
+    "status": 404
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/108-Изменение чужого спортсмена.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}/athletes/{{foreignAthleteId}}",
+    "status": 404
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/109-Чужая группа.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{otherOrganizationId}}/groups/{{groupId}}",
+    "status": 404
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/110-Чужое начисление.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{otherOrganizationId}}/charges/{{chargeId}}",
+    "status": 404
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/111-Чужой документ.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{otherOrganizationId}}/documents/{{documentId}}",
+    "status": 404
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/112-Удалить результат.bru",
+    "method": "DELETE",
+    "url": "/api/v1/organizations/{{organizationId}}/athletes/{{athleteId}}/results/{{resultId}}",
+    "status": 204
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/113-Результат удалён.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/athletes/{{athleteId}}/results?page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/114-Завершить участие в группе.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}/groups/{{groupId}}/athletes/{{athleteId}}",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/115-Архивировать группу.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}/groups/{{groupId}}",
+    "status": 200
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/116-Зачисление в архивную группу.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/groups/{{groupId}}/athletes",
+    "status": 400
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/117-Выход.bru",
+    "method": "POST",
+    "url": "/api/v1/auth/logout",
+    "status": 204
+  },
+  {
+    "collection": "automatic-e2e",
+    "file": "automatic-e2e/requests/118-Me после выхода.bru",
+    "method": "GET",
+    "url": "/api/v1/me",
+    "status": 401
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/001-Получить CSRF.bru",
+    "method": "GET",
+    "url": "/api/v1/auth/csrf",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/002-Запрос регистрации.bru",
+    "method": "POST",
+    "url": "/api/v1/auth/register",
+    "status": 202
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/003-Подтверждение регистрации.bru",
+    "method": "POST",
+    "url": "/api/v1/auth/register/confirm",
+    "status": 204
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/004-Запрос сброса пароля.bru",
+    "method": "POST",
+    "url": "/api/v1/auth/password-reset/request",
+    "status": 202
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/005-Подтверждение сброса пароля.bru",
+    "method": "POST",
+    "url": "/api/v1/auth/password-reset/confirm",
+    "status": 204
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/006-Изменить свой пароль.bru",
+    "method": "PUT",
+    "url": "/api/v1/auth/password",
+    "status": 204
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/007-CSRF и переменные прогона.bru",
+    "method": "GET",
+    "url": "/api/v1/auth/csrf",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/008-Вход.bru",
+    "method": "POST",
+    "url": "/api/v1/auth/login",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/009-Текущий профиль.bru",
+    "method": "GET",
+    "url": "/api/v1/me",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/010-Создать тестовую организацию.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations",
+    "status": 201
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/011-Доступные организации.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/012-Организация.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/013-Изменить организацию.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/014-Участники.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/members?page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/015-Создать sport-types.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/dictionaries/sport-types",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/016-Список sport-types.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/dictionaries/sport-types?page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/017-Создать training-types.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/dictionaries/training-types",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/018-Список training-types.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/dictionaries/training-types?page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/019-Создать venues.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/dictionaries/venues",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/020-Список venues.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/dictionaries/venues?page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/021-Изменить справочник.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}/dictionaries/venues/{{venueId}}",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/022-Создать спортсмена.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/athletes",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/023-Спортсмен.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/athletes/{{athleteId}}",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/024-Изменить спортсмена.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}/athletes/{{athleteId}}",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/025-Список спортсменов.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/athletes?q=Bruno&page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/026-Создать секцию.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/sections",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/027-Список секций.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/sections?page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/028-Изменить секцию.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}/sections/{{sectionId}}",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/029-Создать группу.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/groups",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/030-Список групп.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/groups?page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/031-Изменить группу.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}/groups/{{groupId}}",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/032-Зачислить спортсмена.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/groups/{{groupId}}/athletes",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/033-Состав группы.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/groups/{{groupId}}?includeFormer=true",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/034-Создать прошедшую тренировку.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/trainings",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/035-Тренировки за период.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/trainings?from={{fromInstant}}&to={{toInstant}}&page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/036-Тренировка.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/trainings/{{trainingId}}",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/037-Изменить тренировку.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}/trainings/{{trainingId}}",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/038-Отметить посещаемость.bru",
+    "method": "PUT",
+    "url": "/api/v1/organizations/{{organizationId}}/trainings/{{trainingId}}/attendance",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/039-Черновик отчёта.bru",
+    "method": "PUT",
+    "url": "/api/v1/organizations/{{organizationId}}/trainings/{{trainingId}}/report",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/040-Создать результат.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/athletes/{{athleteId}}/results",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/041-Список результатов.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/athletes/{{athleteId}}/results?page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/042-Изменить результат.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}/athletes/{{athleteId}}/results/{{resultId}}",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/043-standards.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/athletes/{{athleteId}}/standards?page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/044-ranks.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/athletes/{{athleteId}}/ranks?page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/045-Создать мероприятие.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/events",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/046-Мероприятия.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/events?page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/047-Мероприятие.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/events/{{eventId}}",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/048-Добавить участника.bru",
+    "method": "PUT",
+    "url": "/api/v1/organizations/{{organizationId}}/events/{{eventId}}/participants",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/049-Участники мероприятия.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/events/{{eventId}}/participants",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/050-Удалить участника.bru",
+    "method": "DELETE",
+    "url": "/api/v1/organizations/{{organizationId}}/events/{{eventId}}/participants/{{athleteId}}",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/051-Опубликовать мероприятие.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}/events/{{eventId}}",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/052-Создать объявление.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/announcements",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/053-Опубликовать объявление.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}/announcements/{{announcementId}}?status=PUBLISHED",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/054-Объявления.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/announcements?page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/055-Объявление.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/announcements/{{announcementId}}",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/056-Отметить прочтение.bru",
+    "method": "PUT",
+    "url": "/api/v1/organizations/{{organizationId}}/announcements/{{announcementId}}/read",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/057-Ответить на объявление.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/announcements/{{announcementId}}/responses",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/058-Загрузить вложение.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/files",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/059-Загрузить документ.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/documents",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/060-Документы.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/documents?page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/061-Документ.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/documents/{{documentId}}",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/062-Скачать файл документа.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/files/{{fileId}}/content",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/063-Удалить свободное вложение.bru",
+    "method": "DELETE",
+    "url": "/api/v1/organizations/{{organizationId}}/files/{{fileId}}",
+    "status": 204
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/064-Создать начисление.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/charges",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/065-Частичный платёж.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/payments",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/066-Остаток после повтора.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/charges/{{chargeId}}",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/067-Платежи начисления.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/payments?chargeId={{chargeId}}&page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/068-Финансовая сводка.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/finance/summary?from={{fromDate}}&to={{toDate}}",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/069-Каталог отчётов.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/reports/types",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/070-Отчёт ATTENDANCE.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/reports/ATTENDANCE?from={{fromDate}}&to={{toDate}}&page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/071-Экспорт ATTENDANCE CSV.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/reports/ATTENDANCE/export?format=CSV&from={{fromDate}}&to={{toDate}}",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/072-Отчёт TRAININGS.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/reports/TRAININGS?from={{fromDate}}&to={{toDate}}&page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/073-Экспорт TRAININGS CSV.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/reports/TRAININGS/export?format=CSV&from={{fromDate}}&to={{toDate}}",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/074-Отчёт PROGRESS.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/reports/PROGRESS?from={{fromDate}}&to={{toDate}}&page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/075-Экспорт PROGRESS CSV.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/reports/PROGRESS/export?format=CSV&from={{fromDate}}&to={{toDate}}",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/076-Отчёт CHARGES.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/reports/CHARGES?from={{fromDate}}&to={{toDate}}&page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/077-Экспорт CHARGES CSV.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/reports/CHARGES/export?format=CSV&from={{fromDate}}&to={{toDate}}",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/078-Dashboard тренера.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/dashboard?view=TRAINER&from={{fromDate}}&to={{toDate}}",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/079-Удалить результат.bru",
+    "method": "DELETE",
+    "url": "/api/v1/organizations/{{organizationId}}/athletes/{{athleteId}}/results/{{resultId}}",
+    "status": 204
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/080-Завершить участие в группе.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}/groups/{{groupId}}/athletes/{{athleteId}}",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/081-Выход.bru",
+    "method": "POST",
+    "url": "/api/v1/auth/logout",
+    "status": 204
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/082-Добавить родителя в организацию.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/members/parents",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/083-Связать родителя и спортсмена.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}/athletes/{{athleteId}}",
+    "status": 200
+  },
+  {
+    "collection": "manual",
+    "file": "manual/requests/084-Ответ участника мероприятия.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}/events/{{eventId}}/participants/{{athleteId}}",
+    "status": 200
+  },
+  {
+    "collection": "manual-spec",
+    "file": "manual-spec/requests/001-CSRF.bru",
+    "method": "GET",
+    "url": "/api/v1/auth/csrf",
+    "status": 200
+  },
+  {
+    "collection": "manual-spec",
+    "file": "manual-spec/requests/002-Вход.bru",
+    "method": "POST",
+    "url": "/api/v1/auth/login",
+    "status": 200
+  },
+  {
+    "collection": "manual-spec",
+    "file": "manual-spec/requests/003-CSRF после входа.bru",
+    "method": "GET",
+    "url": "/api/v1/auth/csrf",
+    "status": 200
+  },
+  {
+    "collection": "manual-spec",
+    "file": "manual-spec/requests/004-Регистрация только email.bru",
+    "method": "POST",
+    "url": "/api/v1/auth/register",
+    "status": 202
+  },
+  {
+    "collection": "manual-spec",
+    "file": "manual-spec/requests/005-Лишний accountType по ТЗ.bru",
+    "method": "POST",
+    "url": "/api/v1/auth/register",
+    "status": 400
+  },
+  {
+    "collection": "manual-spec",
+    "file": "manual-spec/requests/006-Подтверждение с телефоном по ТЗ.bru",
+    "method": "POST",
+    "url": "/api/v1/auth/register/confirm",
+    "status": 204
+  },
+  {
+    "collection": "manual-spec",
+    "file": "manual-spec/requests/007-Экспорт PDF по ТЗ.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/reports/CHARGES/export?format=PDF&from={{fromDate}}&to={{toDate}}",
+    "status": 200
+  },
+  {
+    "collection": "manual-spec",
+    "file": "manual-spec/requests/008-Экспорт XLSX по ТЗ.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/reports/CHARGES/export?format=XLSX&from={{fromDate}}&to={{toDate}}",
+    "status": 200
+  },
+  {
+    "collection": "manual-spec",
+    "file": "manual-spec/requests/009-Список аккаунтов по ТЗ.bru",
+    "method": "GET",
+    "url": "/api/v1/admin/users?page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "manual-spec",
+    "file": "manual-spec/requests/010-Аккаунт по ID по ТЗ.bru",
+    "method": "GET",
+    "url": "/api/v1/admin/users/{{userId}}",
+    "status": 200
+  },
+  {
+    "collection": "manual-spec",
+    "file": "manual-spec/requests/011-Изменить аккаунт по ТЗ.bru",
+    "method": "PATCH",
+    "url": "/api/v1/admin/users/{{userId}}",
+    "status": 200
+  },
+  {
+    "collection": "manual-spec",
+    "file": "manual-spec/requests/012-Родители по ТЗ.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/parents?page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "manual-spec",
+    "file": "manual-spec/requests/013-Журнал посещаемости по ТЗ.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/attendance?from={{fromDate}}&to={{toDate}}&page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "manual-spec",
+    "file": "manual-spec/requests/014-Получатели объявления по ТЗ.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/announcements/{{announcementId}}/recipients?page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "manual-spec",
+    "file": "manual-spec/requests/015-Ответы на объявление по ТЗ.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/announcements/{{announcementId}}/responses?page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "manual-spec",
+    "file": "manual-spec/requests/016-Изменить документ по ТЗ.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}/documents/{{documentId}}",
+    "status": 200
+  },
+  {
+    "collection": "manual-spec",
+    "file": "manual-spec/requests/017-Список начислений по ТЗ.bru",
+    "method": "GET",
+    "url": "/api/v1/organizations/{{organizationId}}/charges?page=0&size=20",
+    "status": 200
+  },
+  {
+    "collection": "manual-spec",
+    "file": "manual-spec/requests/018-Изменить начисление по ТЗ.bru",
+    "method": "PATCH",
+    "url": "/api/v1/organizations/{{organizationId}}/charges/{{chargeId}}",
+    "status": 200
+  },
+  {
+    "collection": "manual-spec",
+    "file": "manual-spec/requests/019-Аннулировать платёж по ТЗ.bru",
+    "method": "POST",
+    "url": "/api/v1/organizations/{{organizationId}}/payments/{{paymentId}}/void",
+    "status": 200
+  }
+]

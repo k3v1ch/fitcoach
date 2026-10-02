@@ -1,0 +1,53 @@
+meta {
+  name: Частичный платёж
+  type: http
+  seq: 85
+}
+
+post {
+  url: {{baseUrl}}/api/v1/organizations/{{organizationId}}/payments
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-TOKEN: {{csrfToken}}
+  Idempotency-Key: {{paymentKey}}
+}
+
+script:pre-request {
+  if (!bru.getVar('csrfToken')) throw new Error('Сначала выполните GET auth/csrf в этой коллекции.');
+  
+}
+
+body:json {
+  {
+    "chargeId": "{{chargeId}}",
+    "amount": 400,
+    "paidOn": "{{today}}",
+    "method": "CASH",
+    "comment": "Bruno"
+  }
+}
+
+script:post-response {
+  if (res.getStatus() >= 200 && res.getStatus() < 300) {
+    bru.setVar('paymentId', res.getBody().id);
+  }
+}
+
+tests {
+  test("HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Поле amount", function () {
+    expect(res.getBody().amount).to.equal(400);
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

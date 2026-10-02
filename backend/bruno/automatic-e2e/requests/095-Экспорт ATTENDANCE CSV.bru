@@ -1,0 +1,28 @@
+meta {
+  name: Экспорт ATTENDANCE CSV
+  type: http
+  seq: 95
+}
+
+get {
+  url: {{baseUrl}}/api/v1/organizations/{{organizationId}}/reports/ATTENDANCE/export?format=CSV&from={{fromDate}}&to={{toDate}}
+  body: none
+  auth: none
+}
+
+tests {
+  test("HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("CSV download", function () {
+    expect(res.getHeader('content-type')).to.include('text/csv');
+    expect(res.getHeader('content-disposition')).to.include('attachment');
+    expect(res.getHeader('content-disposition')).to.include('.csv');
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

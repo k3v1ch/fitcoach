@@ -1,0 +1,32 @@
+meta {
+  name: ranks
+  type: http
+  seq: 44
+}
+
+get {
+  url: {{baseUrl}}/api/v1/organizations/{{organizationId}}/athletes/{{athleteId}}/ranks?page=0&size=20
+  body: none
+  auth: none
+}
+
+tests {
+  test("HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Пагинация и состав страницы", function () {
+    const b = res.getBody();
+    expect(b.items).to.be.an('array');
+    expect(b.page).to.equal(0);
+    expect(b.size).to.equal(20);
+    expect(b.items.length).to.be.at.most(20);
+    expect(b.totalElements).to.be.a('number').and.at.least(b.items.length);
+    expect(b.totalPages).to.equal(Math.ceil(b.totalElements / b.size));
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

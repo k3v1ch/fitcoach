@@ -1,0 +1,51 @@
+meta {
+  name: Создать мероприятие
+  type: http
+  seq: 45
+}
+
+post {
+  url: {{baseUrl}}/api/v1/organizations/{{organizationId}}/events
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-TOKEN: {{csrfToken}}
+}
+
+script:pre-request {
+  if (!bru.getVar('csrfToken')) throw new Error('Сначала выполните GET auth/csrf в этой коллекции.');
+  
+}
+
+body:json {
+  {
+    "title": "Event {{runId}}",
+    "type": "COMPETITION",
+    "sectionId": "{{sectionId}}",
+    "startsAt": "{{futureStart}}",
+    "endsAt": "{{futureEnd}}",
+    "location": "Тестовый зал",
+    "responseDeadline": "{{futureDeadline}}",
+    "requiredDocumentTypes": []
+  }
+}
+
+script:post-response {
+  if (res.getStatus() >= 200 && res.getStatus() < 300) {
+    bru.setVar('eventId', res.getBody().id);
+  }
+}
+
+tests {
+  test("HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

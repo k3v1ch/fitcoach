@@ -1,0 +1,46 @@
+meta {
+  name: Создать тестовую организацию
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/api/v1/organizations
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-TOKEN: {{csrfToken}}
+}
+
+script:pre-request {
+  if (!bru.getVar('csrfToken')) throw new Error('Сначала выполните GET auth/csrf в этой коллекции.');
+  
+}
+
+body:json {
+  {
+    "name": "Bruno {{runId}}",
+    "description": "Автоматические API тесты",
+    "timezone": "Asia/Vladivostok"
+  }
+}
+
+script:post-response {
+  if (res.getStatus() >= 200 && res.getStatus() < 300) {
+    bru.setVar('organizationId', res.getBody().id);
+  }
+}
+
+tests {
+  test("HTTP 201", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+}
+
+docs {
+  Создаёт отдельную организацию и TRAINER-членство текущего пользователя согласно текущей реализации. Организация остаётся после прогона: endpoint удаления отсутствует.
+}
+

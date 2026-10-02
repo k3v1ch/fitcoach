@@ -1,0 +1,10 @@
+{
+  "version": "1",
+  "name": "Sports Organization — automatic-public",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git",
+    "reports"
+  ]
+}

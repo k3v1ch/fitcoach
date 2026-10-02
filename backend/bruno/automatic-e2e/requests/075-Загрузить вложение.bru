@@ -1,0 +1,45 @@
+meta {
+  name: Загрузить вложение
+  type: http
+  seq: 75
+}
+
+post {
+  url: {{baseUrl}}/api/v1/organizations/{{organizationId}}/files
+  body: multipart-form
+  auth: none
+}
+
+headers {
+  X-CSRF-TOKEN: {{csrfToken}}
+}
+
+script:pre-request {
+  if (!bru.getVar('csrfToken')) throw new Error('Сначала выполните GET auth/csrf в этой коллекции.');
+  
+}
+
+body:multipart-form {
+  file: @file(fixtures/sample.png)
+}
+
+script:post-response {
+  if (res.getStatus() >= 200 && res.getStatus() < 300) {
+    bru.setVar('fileId', res.getBody().id);
+  }
+}
+
+tests {
+  test("HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Файл сохранён", function () {
+    expect(res.getBody().id).to.be.a('string');
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

@@ -1,0 +1,29 @@
+meta {
+  name: Доступные организации
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/v1/organizations
+  body: none
+  auth: none
+}
+
+tests {
+  test("HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Созданная организация и права", function () {
+    const found=res.getBody().find(x=>x.organizationId===bru.getVar('organizationId'));
+    expect(found).to.exist;
+    expect(found.roles).to.include('TRAINER');
+    expect(found.permissions).to.include('payments.write');
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

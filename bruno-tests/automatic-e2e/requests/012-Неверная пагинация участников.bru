@@ -1,0 +1,30 @@
+meta {
+  name: Неверная пагинация участников
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{baseUrl}}/api/v1/organizations/{{organizationId}}/members?size=101
+  body: none
+  auth: none
+}
+
+tests {
+  test("HTTP 400", function () {
+    expect(res.getStatus()).to.equal(400);
+  });
+  
+  test("Структура ошибки API", function () {
+    const b = res.getBody();
+    expect(b.code).to.be.a('string').and.not.empty;
+    expect(b.message).to.be.a('string').and.not.empty;
+    expect(b.fieldErrors).to.be.an('array');
+    expect(b.requestId).to.be.a('string').and.not.empty;
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

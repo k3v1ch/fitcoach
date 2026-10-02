@@ -1,0 +1,38 @@
+meta {
+  name: Изменить начисление по ТЗ
+  type: http
+  seq: 18
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/organizations/{{organizationId}}/charges/{{chargeId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-TOKEN: {{csrfToken}}
+}
+
+script:pre-request {
+  if (!bru.getVar('csrfToken')) throw new Error('Сначала выполните GET auth/csrf в этой коллекции.');
+  
+}
+
+body:json {
+  {
+    "title": "Bruno updated"
+  }
+}
+
+tests {
+  test("HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}
+
+docs {
+  Этот метод описан в приложенном ТЗ, но соответствующего mapping в текущих контроллерах нет. Ожидаемый статус по ТЗ: 200. Для /admin нужен APP_ADMIN; для остальных методов нужны доступ к организации и соответствующие права. Запрос предназначен для проверки реализации после добавления метода.
+}
+

@@ -1,0 +1,26 @@
+meta {
+  name: Тренировка
+  type: http
+  seq: 39
+}
+
+get {
+  url: {{baseUrl}}/api/v1/organizations/{{organizationId}}/trainings/{{trainingId}}
+  body: none
+  auth: none
+}
+
+tests {
+  test("HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Поле id", function () {
+    expect(res.getBody().id).to.equal(bru.getVar('trainingId'));
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

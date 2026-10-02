@@ -1,0 +1,28 @@
+meta {
+  name: CSRF и переменные прогона
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/v1/auth/csrf
+  body: none
+  auth: none
+}
+
+script:post-response {
+  if (res.getStatus() >= 200 && res.getStatus() < 300) {
+    bru.setVar('csrfToken', res.getBody().token);
+  }
+}
+
+tests {
+  test("HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

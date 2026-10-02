@@ -1,0 +1,39 @@
+meta {
+  name: Подтверждение сброса пароля
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/password-reset/confirm
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-TOKEN: {{csrfToken}}
+}
+
+script:pre-request {
+  if (!bru.getVar('csrfToken')) throw new Error('Сначала выполните GET auth/csrf в этой коллекции.');
+  
+}
+
+body:json {
+  {
+    "token": "{{resetToken}}",
+    "newPassword": "{{newPassword}}"
+  }
+}
+
+tests {
+  test("HTTP 204", function () {
+    expect(res.getStatus()).to.equal(204);
+  });
+}
+
+docs {
+  Меняет пароль тестового аккаунта и завершает сессии. Получите resetToken из письма.
+}
+

@@ -1,0 +1,54 @@
+meta {
+  name: Редактирование опубликованного объявления
+  type: http
+  seq: 74
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/organizations/{{organizationId}}/announcements/{{announcementId}}?status=PUBLISHED
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-TOKEN: {{csrfToken}}
+}
+
+script:pre-request {
+  if (!bru.getVar('csrfToken')) throw new Error('Сначала выполните GET auth/csrf в этой коллекции.');
+  
+}
+
+body:json {
+  {
+    "title": "Announcement {{runId}}",
+    "text": "Forbidden",
+    "category": "GENERAL",
+    "recipientUserIds": [
+      "{{userId}}"
+    ],
+    "requiresResponse": true,
+    "responseDeadline": "{{futureDeadline}}",
+    "attachmentFileIds": []
+  }
+}
+
+tests {
+  test("HTTP 400", function () {
+    expect(res.getStatus()).to.equal(400);
+  });
+  
+  test("Структура ошибки API", function () {
+    const b = res.getBody();
+    expect(b.code).to.be.a('string').and.not.empty;
+    expect(b.message).to.be.a('string').and.not.empty;
+    expect(b.fieldErrors).to.be.an('array');
+    expect(b.requestId).to.be.a('string').and.not.empty;
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

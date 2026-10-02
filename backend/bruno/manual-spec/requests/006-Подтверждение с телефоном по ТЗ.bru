@@ -1,0 +1,41 @@
+meta {
+  name: Подтверждение с телефоном по ТЗ
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/register/confirm
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-TOKEN: {{csrfToken}}
+}
+
+script:pre-request {
+  if (!bru.getVar('csrfToken')) throw new Error('Сначала выполните GET auth/csrf в этой коллекции.');
+  
+}
+
+body:json {
+  {
+    "token": "{{registrationToken}}",
+    "fullName": "Bruno User",
+    "phone": "+79990000000",
+    "password": "{{password}}"
+  }
+}
+
+tests {
+  test("HTTP 204", function () {
+    expect(res.getStatus()).to.equal(204);
+  });
+}
+
+docs {
+  Нужен действующий токен. По ТЗ phone необязателен; текущий DTO phone не принимает. Эта проверка сейчас должна выявлять расхождение.
+}
+

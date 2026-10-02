@@ -1,0 +1,40 @@
+meta {
+  name: Регистрация без CSRF
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/register
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "bruno@example.com"
+  }
+}
+
+tests {
+  test("HTTP 403", function () {
+    expect(res.getStatus()).to.equal(403);
+  });
+  
+  test("Структура ошибки API", function () {
+    const b = res.getBody();
+    expect(b.code).to.be.a('string').and.not.empty;
+    expect(b.message).to.be.a('string').and.not.empty;
+    expect(b.fieldErrors).to.be.an('array');
+    expect(b.requestId).to.be.a('string').and.not.empty;
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

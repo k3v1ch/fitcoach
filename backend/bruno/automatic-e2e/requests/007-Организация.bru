@@ -1,0 +1,26 @@
+meta {
+  name: Организация
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/v1/organizations/{{organizationId}}
+  body: none
+  auth: none
+}
+
+tests {
+  test("HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Поле id", function () {
+    expect(res.getBody().id).to.equal(bru.getVar('organizationId'));
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

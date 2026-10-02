@@ -1,0 +1,27 @@
+meta {
+  name: Состав группы
+  type: http
+  seq: 36
+}
+
+get {
+  url: {{baseUrl}}/api/v1/organizations/{{organizationId}}/groups/{{groupId}}?includeFormer=true
+  body: none
+  auth: none
+}
+
+tests {
+  test("HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Спортсмен в составе", function () {
+    expect(res.getBody().group.id).to.equal(bru.getVar('groupId'));
+    expect(res.getBody().athletes.map(x=>x.athleteId)).to.include(bru.getVar('athleteId'));
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

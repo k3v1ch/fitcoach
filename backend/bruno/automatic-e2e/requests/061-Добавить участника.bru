@@ -1,0 +1,38 @@
+meta {
+  name: Добавить участника
+  type: http
+  seq: 61
+}
+
+put {
+  url: {{baseUrl}}/api/v1/organizations/{{organizationId}}/events/{{eventId}}/participants
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-TOKEN: {{csrfToken}}
+}
+
+script:pre-request {
+  if (!bru.getVar('csrfToken')) throw new Error('Сначала выполните GET auth/csrf в этой коллекции.');
+  
+}
+
+body:json {
+  [
+    "{{athleteId}}"
+  ]
+}
+
+tests {
+  test("HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

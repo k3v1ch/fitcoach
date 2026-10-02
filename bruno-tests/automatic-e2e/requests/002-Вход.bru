@@ -1,0 +1,55 @@
+meta {
+  name: Вход
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/login
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-TOKEN: {{csrfToken}}
+}
+
+script:pre-request {
+  if (!bru.getVar('csrfToken')) throw new Error('Сначала выполните GET auth/csrf в этой коллекции.');
+  if (!bru.getEnvVar('email') || !bru.getEnvVar('password')) throw new Error('Укажите email и password активного тестового аккаунта.');
+}
+
+body:json {
+  {
+    "email": "{{email}}",
+    "password": "{{password}}"
+  }
+}
+
+script:post-response {
+  if (res.getStatus() >= 200 && res.getStatus() < 300) {
+    bru.setVar('userId', res.getBody().userId);
+  }
+}
+
+tests {
+  test("HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Профиль и срок сессии", function () {
+    const b=res.getBody();
+    expect(b.userId).to.match(/^[0-9a-f-]{36}$/i);
+    expect(b.email).to.be.a('string');
+    expect(b.fullName).to.be.a('string').and.not.empty;
+    expect(Date.parse(b.expiresAt)).to.be.above(Date.now());
+    expect(b).not.to.have.property('password');
+    expect(b).not.to.have.property('passwordHash');
+  });
+}
+
+docs {
+  Ожидаемый результат проверяется во вкладке Tests. Для изменения данных нужна сессия и актуальный CSRF.
+}
+

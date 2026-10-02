@@ -73,7 +73,7 @@ fitcoach-cert issue
 
 # 7. Защита
 deploy/server/install.sh firewall   # ufw: только 22/80/443; DOCKER-USER: в контейнеры только 80/443
-deploy/server/install.sh ssh        # root только по ключу, git — git-shell без туннелей
+deploy/server/install.sh ssh        # root только по ключу; git — пароль или ключ, git-shell без туннелей
 ```
 
 Проверка: `fitcoach-verify` — 25 проверок защиты и состояния; код выхода — число провалов.
@@ -190,6 +190,6 @@ systemctl list-timers fitcoach-backup.timer certbot.timer
 | `502` 30–60 с после пуша в master | идёт выкладка, бэкенд перезапускается |
 | `429 Too Many Requests` | лимит nginx: `/api` — 20 запросов/с с IP, вход/регистрация — 10 в минуту. Для нагрузочного теста добавьте IP в `ratelimit-allow.conf` (`203.0.113.10 1;`) и `docker exec fitcoach-edge-1 nginx -s reload` |
 | `ssh: Connection refused` с вашего IP | fail2ban: 3 неудачные попытки → бан на сутки. Снять: `fail2ban-client set sshd unbanip <IP>` |
-| `git push` просит пароль / `Permission denied (publickey)` | вход только по ключу: пришлите публичный ключ DevOps, он добавит его в `/home/git/.ssh/authorized_keys` |
+| `git push`: `Permission denied` | git — по паролю команды или по ключу; root — только по ключу. 3 неверных пароля за 10 минут → бан IP на сутки |
 | CI: `✖ тесты бэкенда упали` | `ssh git@… ci-status <id>` — вывод Maven; выкладка не выполнялась |
 | Сборка падает по памяти | проверьте `free -h`, swap 2 ГБ должен быть включён |

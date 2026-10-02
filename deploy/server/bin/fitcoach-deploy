@@ -4,6 +4,7 @@
 #   fitcoach-deploy --rollback  — вернуть предыдущий успешный релиз
 #   fitcoach-deploy --status    — текущий релиз и контейнеры
 #   fitcoach-deploy --cleanup   — удалить старые релизы и неиспользуемые образы
+#   fitcoach-deploy --tags <sha40> — теги образов коммита (backend, edge)
 # Образы помечаются по содержимому: backend — хеш дерева backend/, edge — хеш frontend/ + deploy/edge/,
 # поэтому неизменённый сервис не пересобирается и не перезапускается. Сначала обновляется backend
 # (сайт в это время отдаёт прежний edge), затем edge. Если проверка здоровья не прошла —
@@ -32,7 +33,10 @@ current_sha() {
 }
 
 tree() {  # tree <sha40> <каталог> — хеш дерева каталога в коммите или none
-  git_ rev-parse -q --verify "$1:$2^{tree}" 2>/dev/null || echo none
+  local id
+  # "<коммит>:<путь>" — всё после двоеточия git считает путём, суффиксы вроде ^{tree} сюда нельзя
+  id=$(git_ rev-parse -q --verify "$1:$2" 2>/dev/null) || { echo none; return 0; }
+  if [[ $(git_ cat-file -t "$id" 2>/dev/null) == tree ]]; then echo "$id"; else echo none; fi
 }
 
 image_tags() {  # image_tags <sha40> → "<тег backend> <тег edge>"
@@ -193,6 +197,9 @@ status() {
 install -d -m 0700 "$(dirname "$HISTORY")"
 case "${1:-}" in
   --status) status ;;
+  --tags)
+    [[ ${2:-} =~ ^[0-9a-f]{40}$ ]] || die "нужен полный sha коммита"
+    image_tags "$2" ;;
   --cleanup)
     exec 9>/run/fitcoach-deploy.lock
     flock -w 1800 9 || die "другая выкладка не закончилась"
@@ -201,7 +208,7 @@ case "${1:-}" in
     exec 9>/run/fitcoach-deploy.lock
     flock -w 1800 9 || die "другая выкладка не закончилась"
     rollback ;;
-  ""|-h|--help) sed -n '2,11p' "$0" ;;
+  ""|-h|--help) sed -n '2,12p' "$0" ;;
   *)
     exec 9>/run/fitcoach-deploy.lock
     flock -w 1800 9 || die "другая выкладка не закончилась"

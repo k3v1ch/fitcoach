@@ -41,6 +41,7 @@ check "CI: fitcoach-ci.path активен"              systemctl is-active fit
 check "бэкап: таймер активен"                     systemctl is-active fitcoach-backup.timer
 check "бэкап: есть свежий (<26 ч)"                sh -c 'find /var/backups/fitcoach -mindepth 1 -maxdepth 1 -type d -mmin -1560 | grep -q .'
 check "certbot.timer активен"                     systemctl is-active certbot.timer
+check "диск: свободно ≥ 2 ГБ"                    sh -c "df -B1 --output=avail / | tail -n 1 | awk '{exit !(\$1 >= 2000000000)}'"
 check "swap ≥ 2 ГБ"                               sh -c "free -b | awk '/^Swap:/ {exit !(\$2 >= 2000000000)}'"
 check "остатков VPN-ноды нет"                     sh -c '! docker ps -a --format "{{.Names}}" | grep -Eq "caddy|remnawave"'
 

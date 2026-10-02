@@ -129,9 +129,10 @@ cleanup() {
       [[ $keep_tags == *" ${img#fitcoach.local/} "* ]] || docker rmi "$img" >/dev/null 2>&1 || true
     done
   docker image prune -f >/dev/null
-  # кэш сборки держим в пределах 1.5 ГБ (диск сервера 20 ГБ); старый buildx — чистка по возрасту
-  docker builder prune -f --max-used-space 1500mb >/dev/null 2>&1 ||
-    docker builder prune -f --filter until=72h >/dev/null 2>&1 || true
+  docker builder prune -f --filter until=72h >/dev/null 2>&1 || true
+  # Кэш сборки в основном общий со слоями образов; если на диске меньше 3 ГБ —
+  # удаляем и давно не использованный кэш (--max-used-space такие записи не трогает)
+  docker builder prune -af --min-free-space 3gb >/dev/null 2>&1 || true
 }
 
 up_and_check() {  # up_and_check <sha40>: сначала db и backend (сайт отдаёт прежний edge), затем edge

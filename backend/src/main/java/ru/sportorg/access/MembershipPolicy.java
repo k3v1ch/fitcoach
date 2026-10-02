@@ -50,6 +50,14 @@ public final class MembershipPolicy {
         }
     }
 
+    public static List<String> selfServicePermissions() {
+        return SELF_SERVICE_PERMISSIONS.stream().sorted().toList();
+    }
+
+    public static List<String> trainerPermissions() {
+        return ALL_PERMISSIONS.stream().sorted().toList();
+    }
+
     private static Set<String> allowedPermissions(List<String> roles) {
         if (roles.contains("TRAINER")) {
             return ALL_PERMISSIONS;

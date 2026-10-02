@@ -43,6 +43,53 @@ class OrganizationRepository {
                 .optional();
     }
 
+    List<OrganizationAccess> findOrganizationsForUser(UUID userId) {
+        return jdbcClient.sql("""
+                        SELECT o.id, o.name, m.roles::text AS roles, m.permissions::text AS permissions
+                        FROM membership m
+                        JOIN organization o ON o.id = m.organization_id
+                        WHERE m.user_id = :userId AND m.status = 'ACTIVE'
+                        ORDER BY o.name, o.id
+                        """)
+                .param("userId", userId)
+                .query((resultSet, rowNumber) -> new OrganizationAccess(
+                        resultSet.getObject("id", UUID.class),
+                        resultSet.getString("name"),
+                        readStringList(resultSet.getString("roles")),
+                        readStringList(resultSet.getString("permissions"))))
+                .list();
+    }
+
+    Organization createOrganization(UUID creatorUserId, String name, String description, String address,
+                                    String timezone, List<String> permissions, Instant now) {
+        UUID organizationId = jdbcClient.sql("""
+                        INSERT INTO organization (name, description, address, timezone, created_at, updated_at)
+                        VALUES (:name, :description, :address, :timezone, :now, :now)
+                        RETURNING id
+                        """)
+                .param("name", name)
+                .param("description", description)
+                .param("address", address)
+                .param("timezone", timezone)
+                .param("now", now)
+                .query((resultSet, rowNumber) -> resultSet.getObject("id", UUID.class))
+                .single();
+
+        jdbcClient.sql("""
+                        INSERT INTO membership (user_id, organization_id, roles, permissions, status,
+                                                created_at, updated_at)
+                        VALUES (:userId, :organizationId, '["TRAINER"]'::jsonb, CAST(:permissions AS jsonb),
+                                'ACTIVE', :now, :now)
+                        """)
+                .param("userId", creatorUserId)
+                .param("organizationId", organizationId)
+                .param("permissions", writeStringList(permissions))
+                .param("now", now)
+                .update();
+
+        return findOrganization(organizationId).orElseThrow();
+    }
+
     Optional<MembershipAccess> findActiveMembership(UUID userId, UUID organizationId) {
         return jdbcClient.sql("""
                         SELECT roles::text AS roles, permissions::text AS permissions
@@ -123,11 +170,62 @@ class OrganizationRepository {
                 .list();
     }
 
+    Optional<OrganizationMember> addParentMembership(UUID organizationId, String normalizedEmail,
+                                                     List<String> permissions, Instant updatedAt) {
+        String permissionsJson = writeStringList(permissions);
+        return jdbcClient.sql("""
+                        WITH upserted AS (
+                            INSERT INTO membership (user_id, organization_id, roles, permissions, status,
+                                                    created_at, updated_at)
+                            SELECT u.id, :organizationId, '["PARENT"]'::jsonb, CAST(:permissions AS jsonb),
+                                   'ACTIVE', :updatedAt, :updatedAt
+                            FROM app_user u
+                            WHERE u.normalized_email = :normalizedEmail
+                              AND u.status = 'ACTIVE'
+                              AND u.email_verified_at IS NOT NULL
+                            ON CONFLICT (user_id, organization_id) DO UPDATE
+                            SET roles = (
+                                    SELECT jsonb_agg(DISTINCT role ORDER BY role)
+                                    FROM jsonb_array_elements_text(membership.roles || EXCLUDED.roles) AS roles(role)
+                                ),
+                                permissions = (
+                                    SELECT jsonb_agg(DISTINCT permission ORDER BY permission)
+                                    FROM jsonb_array_elements_text(membership.permissions || EXCLUDED.permissions) AS permissions(permission)
+                                ),
+                                updated_at = EXCLUDED.updated_at
+                            WHERE membership.status = 'ACTIVE'
+                              AND NOT (membership.roles @> '["AGENCY"]'::jsonb)
+                            RETURNING user_id, roles, status
+                        )
+                        SELECT u.id AS user_id, u.full_name, upserted.roles::text AS roles, upserted.status
+                        FROM upserted
+                        JOIN app_user u ON u.id = upserted.user_id
+                        """)
+                .param("organizationId", organizationId)
+                .param("normalizedEmail", normalizedEmail)
+                .param("permissions", permissionsJson)
+                .param("updatedAt", updatedAt)
+                .query((resultSet, rowNumber) -> new OrganizationMember(
+                        resultSet.getObject("user_id", UUID.class),
+                        resultSet.getString("full_name"),
+                        readStringList(resultSet.getString("roles")),
+                        resultSet.getString("status")))
+                .optional();
+    }
+
     private List<String> readStringList(String json) {
         try {
             return objectMapper.readValue(json, STRING_LIST);
         } catch (IOException exception) {
             throw new IllegalStateException("Stored membership data is invalid", exception);
+        }
+    }
+
+    private String writeStringList(List<String> values) {
+        try {
+            return objectMapper.writeValueAsString(values);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Membership data cannot be serialized.", exception);
         }
     }
 

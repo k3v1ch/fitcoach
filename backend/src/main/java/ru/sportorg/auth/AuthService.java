@@ -30,7 +30,6 @@ class AuthService {
     private final SecurityContextRepository securityContextRepository;
     private final CsrfTokenRepository csrfTokenRepository;
     private final AccountRepository accountRepository;
-    private final MembershipRepository membershipRepository;
     private final Clock clock;
     private final boolean secureCookie;
 
@@ -39,7 +38,6 @@ class AuthService {
                  SecurityContextRepository securityContextRepository,
                  CsrfTokenRepository csrfTokenRepository,
                  AccountRepository accountRepository,
-                 MembershipRepository membershipRepository,
                  Clock clock,
                  @org.springframework.beans.factory.annotation.Value("${server.servlet.session.cookie.secure:true}")
                  boolean secureCookie) {
@@ -48,7 +46,6 @@ class AuthService {
         this.securityContextRepository = securityContextRepository;
         this.csrfTokenRepository = csrfTokenRepository;
         this.accountRepository = accountRepository;
-        this.membershipRepository = membershipRepository;
         this.clock = clock;
         this.secureCookie = secureCookie;
     }
@@ -105,7 +102,6 @@ class AuthService {
     }
 
     private CurrentUser currentUser(AuthenticatedUser user, Instant expiresAt) {
-        return new CurrentUser(user.userId(), user.email(), user.fullName(), user.appRole(),
-                expiresAt, membershipRepository.findActiveAccesses(user.userId()));
+        return new CurrentUser(user.userId(), user.email(), user.fullName(), user.appRole(), expiresAt);
     }
 }

@@ -3,7 +3,7 @@ package ru.sportorg.auth;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.util.List;
+import java.util.Arrays;
 import java.util.UUID;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -51,15 +51,12 @@ class AuthServiceTest {
     @Mock
     private AccountRepository accountRepository;
 
-    @Mock
-    private MembershipRepository membershipRepository;
-
     private AuthService authService;
 
     @BeforeEach
     void setUp() {
         authService = new AuthService(authenticationManager, sessionAuthenticationStrategy,
-                securityContextRepository, csrfTokenRepository, accountRepository, membershipRepository,
+                securityContextRepository, csrfTokenRepository, accountRepository,
                 Clock.fixed(NOW, ZoneOffset.UTC), false);
     }
 
@@ -73,8 +70,6 @@ class AuthServiceTest {
         when(authenticationManager.authenticate(any(Authentication.class))).thenReturn(authenticated);
         when(csrfTokenRepository.generateToken(any(HttpServletRequest.class)))
                 .thenReturn(new DefaultCsrfToken("X-CSRF-TOKEN", "_csrf", "fresh-token"));
-        when(membershipRepository.findActiveAccesses(userId)).thenReturn(List.of());
-
         var request = new MockHttpServletRequest();
         var response = new MockHttpServletResponse();
         CurrentUser currentUser = authService.login(new LoginRequest(" Person@Example.org ", "password"),
@@ -95,19 +90,22 @@ class AuthServiceTest {
     }
 
     @Test
-    void meReturnsCurrentActiveMembershipsAndSessionDeadline() {
+        void meReturnsCurrentAccountWithoutOrganizationData() {
         UUID userId = UUID.randomUUID();
         var user = new AuthenticatedUser(userId, "person@example.org", "person@example.org", "Person",
                 null, "password-hash", "USER", "ACTIVE", true);
-        var membership = new OrganizationAccess(UUID.randomUUID(), "Sports Club", List.of("ATHLETE"),
-                List.of("groups.read"));
-        when(membershipRepository.findActiveAccesses(userId)).thenReturn(List.of(membership));
         var session = new MockHttpServletRequest().getSession(true);
         session.setAttribute(SessionExpiry.ATTRIBUTE, NOW.plusSeconds(3600).toEpochMilli());
 
         CurrentUser currentUser = authService.currentUser(user, session);
 
-        assertEquals(List.of(membership), currentUser.organizations());
+                assertEquals(userId, currentUser.userId());
+                assertEquals("person@example.org", currentUser.email());
+                var fields = Arrays.stream(CurrentUser.class.getRecordComponents())
+                        .map(component -> component.getName())
+                        .toList();
+                assertFalse(fields.contains("organizations"));
+                assertFalse(fields.contains("sections"));
         assertEquals(NOW.plusSeconds(3600), currentUser.expiresAt());
     }
 }

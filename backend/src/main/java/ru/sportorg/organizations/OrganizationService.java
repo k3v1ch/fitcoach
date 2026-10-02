@@ -8,6 +8,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
+import ru.sportorg.access.MembershipPolicy;
 import ru.sportorg.auth.AuthenticatedUser;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +25,29 @@ class OrganizationService {
     OrganizationService(OrganizationRepository repository, Clock clock) {
         this.repository = repository;
         this.clock = clock;
+    }
+
+    List<OrganizationAccess> listOrganizations(AuthenticatedUser actor) {
+        if (actor == null) {
+            throw new OrganizationNotFoundException();
+        }
+        return repository.findOrganizationsForUser(actor.userId());
+    }
+
+    @Transactional
+    Organization createOrganization(AuthenticatedUser actor, OrganizationWrite write) {
+        if (actor == null) {
+            throw new OrganizationNotFoundException();
+        }
+        if (write == null || write.name() == null || write.name().isBlank()
+                || write.name().trim().length() > 200) {
+            throw new OrganizationRequestException("Название организации должно содержать от 1 до 200 символов.");
+        }
+        String timezone = write.timezone() == null || write.timezone().isBlank()
+                ? "Europe/Moscow" : write.timezone().trim();
+        validateTimezone(timezone);
+        return repository.createOrganization(actor.userId(), write.name().trim(), write.description(),
+                write.address(), timezone, MembershipPolicy.trainerPermissions(), clock.instant());
     }
 
     Organization getOrganization(AuthenticatedUser actor, UUID organizationId) {
@@ -63,6 +87,23 @@ class OrganizationService {
         return new OrganizationMemberPage(items, page, size, total, (int) Math.ceil((double) total / size));
     }
 
+    @Transactional
+    OrganizationMember addParent(AuthenticatedUser actor, UUID organizationId, ParentMembershipWrite write) {
+        findOrganization(organizationId);
+        OrganizationRepository.MembershipAccess access = requireMembership(actor, organizationId);
+        if (!access.roles().contains("TRAINER") || !access.permissions().contains("members.write")) {
+            throw new OrganizationPermissionException();
+        }
+        if (write.email() == null || write.email().isBlank() || write.email().trim().length() > 320) {
+            throw new OrganizationRequestException("Укажите корректный email родителя.");
+        }
+        String normalizedEmail = write.email().trim().toLowerCase(Locale.ROOT);
+        return repository.addParentMembership(organizationId, normalizedEmail,
+                        MembershipPolicy.selfServicePermissions(), clock.instant())
+                .orElseThrow(() -> new OrganizationRequestException(
+                        "Аккаунт не найден или не активирован, либо членство нельзя изменить."));
+    }
+
     private void validatePatch(OrganizationPatch patch) {
         if (!patch.isNameProvided() && !patch.isDescriptionProvided()
                 && !patch.isAddressProvided() && !patch.isTimezoneProvided()) {
@@ -73,14 +114,18 @@ class OrganizationService {
             throw new OrganizationRequestException("Название организации не может быть пустым.");
         }
         if (patch.isTimezoneProvided()) {
-            try {
-                if (!ZoneId.getAvailableZoneIds().contains(patch.getTimezone())) {
-                    throw new OrganizationRequestException("Укажите корректную IANA timezone.");
-                }
-                ZoneId.of(patch.getTimezone());
-            } catch (DateTimeException | NullPointerException exception) {
+            validateTimezone(patch.getTimezone());
+        }
+    }
+
+    private void validateTimezone(String timezone) {
+        try {
+            if (timezone == null || !ZoneId.getAvailableZoneIds().contains(timezone)) {
                 throw new OrganizationRequestException("Укажите корректную IANA timezone.");
             }
+            ZoneId.of(timezone);
+        } catch (DateTimeException | NullPointerException exception) {
+            throw new OrganizationRequestException("Укажите корректную IANA timezone.");
         }
     }
 

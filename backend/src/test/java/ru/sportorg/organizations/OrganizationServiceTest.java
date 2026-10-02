@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import ru.sportorg.access.MembershipPolicy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,6 +15,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ru.sportorg.auth.AuthenticatedUser;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -106,6 +108,87 @@ class OrganizationServiceTest {
                 () -> organizationService.getMembers(trainer, organizationId, null, null, null, 0, 20));
 
         verify(repository, never()).countMembers(any(), any(), any(), any());
+    }
+
+    @Test
+    void trainerWithMembersWriteCanGrantParentMembership() {
+        OrganizationMember parent = new OrganizationMember(
+                UUID.randomUUID(), "Parent Name", List.of("PARENT"), "ACTIVE");
+        when(repository.findOrganization(organizationId)).thenReturn(Optional.of(organization()));
+        when(repository.findActiveMembership(trainer.userId(), organizationId))
+                .thenReturn(Optional.of(new OrganizationRepository.MembershipAccess(
+                        List.of("TRAINER"), List.of("members.write"))));
+        when(repository.addParentMembership(organizationId, "parent@example.org",
+                MembershipPolicy.selfServicePermissions(), NOW)).thenReturn(Optional.of(parent));
+
+        OrganizationMember result = organizationService.addParent(trainer, organizationId,
+                new ParentMembershipWrite(" Parent@Example.org "));
+
+        assertEquals(parent, result);
+        verify(repository).addParentMembership(organizationId, "parent@example.org",
+                MembershipPolicy.selfServicePermissions(), NOW);
+    }
+
+    @Test
+    void parentMembershipGrantRequiresTrainerRoleAndMembersWrite() {
+        when(repository.findOrganization(organizationId)).thenReturn(Optional.of(organization()));
+        when(repository.findActiveMembership(trainer.userId(), organizationId))
+                .thenReturn(Optional.of(new OrganizationRepository.MembershipAccess(
+                        List.of("PARENT"), List.of("members.write"))));
+
+        assertThrows(OrganizationPermissionException.class,
+                () -> organizationService.addParent(trainer, organizationId,
+                        new ParentMembershipWrite("parent@example.org")));
+
+        verify(repository, never()).addParentMembership(any(), any(), any(), any());
+    }
+
+    @Test
+    void parentMembershipGrantRejectsUnknownOrInactiveAccount() {
+        when(repository.findOrganization(organizationId)).thenReturn(Optional.of(organization()));
+        when(repository.findActiveMembership(trainer.userId(), organizationId))
+                .thenReturn(Optional.of(new OrganizationRepository.MembershipAccess(
+                        List.of("TRAINER"), List.of("members.write"))));
+        when(repository.addParentMembership(organizationId, "parent@example.org",
+                MembershipPolicy.selfServicePermissions(), NOW)).thenReturn(Optional.empty());
+
+        assertThrows(OrganizationRequestException.class,
+                () -> organizationService.addParent(trainer, organizationId,
+                        new ParentMembershipWrite("parent@example.org")));
+    }
+
+    @Test
+    void listsOnlyOrganizationsAvailableToCurrentUser() {
+        List<OrganizationAccess> organizations = List.of(new OrganizationAccess(
+                organizationId, "Club", List.of("TRAINER"), List.of("sections.write")));
+        when(repository.findOrganizationsForUser(trainer.userId())).thenReturn(organizations);
+
+        assertEquals(organizations, organizationService.listOrganizations(trainer));
+        verify(repository).findOrganizationsForUser(trainer.userId());
+    }
+
+    @Test
+    void createsOrganizationAndAssignsCreatorTrainerPermissions() {
+        Organization created = organization();
+        OrganizationWrite write = new OrganizationWrite(" Club ", "Description", "Address", null);
+        when(repository.createOrganization(trainer.userId(), "Club", "Description", "Address",
+                "Europe/Moscow", MembershipPolicy.trainerPermissions(), NOW)).thenReturn(created);
+
+        Organization result = organizationService.createOrganization(trainer, write);
+
+        assertEquals(created, result);
+        verify(repository).createOrganization(trainer.userId(), "Club", "Description", "Address",
+                "Europe/Moscow", MembershipPolicy.trainerPermissions(), NOW);
+    }
+
+    @Test
+    void rejectsInvalidTimezoneWhenCreatingOrganization() {
+        OrganizationWrite write = new OrganizationWrite("Club", null, null, "+03:00");
+
+        assertThrows(OrganizationRequestException.class,
+                () -> organizationService.createOrganization(trainer, write));
+
+        verify(repository, never()).createOrganization(any(), any(), any(), any(), any(), any(), any());
     }
 
     private Organization organization() {

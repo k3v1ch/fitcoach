@@ -1,4 +1,4 @@
-package ru.sportorg.auth;
+package ru.sportorg.organizations;
 
 import java.util.List;
 import java.util.UUID;

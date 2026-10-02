@@ -11,8 +11,9 @@ export const authApi = {
   me() {
     return api.get('/me')
   },
-  register(email, accountType = 'ATHLETE', fullName = '') {
-    return api.post('/auth/register', { email, accountType, fullName })
+  // RegistrationRequest на бэкенде: только email и accountType (лишнее поле → 400). Имя задаётся при подтверждении.
+  register(email, accountType = 'ATHLETE') {
+    return api.post('/auth/register', { email, accountType })
   },
   registerConfirm(token, fullName, password, accountType = 'ATHLETE') {
     return api.post('/auth/register/confirm', { token, fullName, password, accountType })

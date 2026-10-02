@@ -45,7 +45,6 @@
         <!-- РЕГИСТРАЦИЯ -->
         <form v-if="currentTab === 'register'" @submit.prevent="handleRegisterRequest" class="auth-form">
           <BaseInput id="reg-email" label="Электронная почта" type="email" v-model="form.email" placeholder="alexey@fitcoach.ru" />
-          <BaseInput id="reg-name" label="Имя и фамилия (необязательно)" v-model="form.fullName" placeholder="Иван Иванов" />
 
           <div class="field">
             <label class="field-label">Кто вы?</label>
@@ -147,7 +146,7 @@ async function handleRegisterRequest() {
   resetMessages()
   isLoading.value = true
   try {
-    await authApi.register(form.email, form.accountType, form.fullName)
+    await authApi.register(form.email, form.accountType)
     successMessage.value = 'Если регистрация доступна — на email придёт письмо со ссылкой.'
   } catch (e) {
     errorMessage.value = e.message

@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Бэкап ФитКоуч: дамп БД, архив загруженных файлов, git bundle репозитория.
+#   fitcoach-backup [метка]  → /var/backups/fitcoach/<UTC>-<метка>/  (хранение 14 дней)
+# Восстановление БД (см. doc/deploy.md):
+#   docker exec -i fitcoach-db-1 sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' < db.dump
+set -Eeuo pipefail
+
+ROOT=/var/backups/fitcoach
+KEEP_DAYS=14
+GIT_DIR=/home/git/Iinformation-system/.git
+label=${1:-daily}
+[[ $label =~ ^[a-z0-9-]+$ ]] || { echo "fitcoach-backup: метка — только a-z, 0-9, -" >&2; exit 2; }
+
+umask 077
+dir=$ROOT/$(date -u +%Y%m%dT%H%M%SZ)-$label
+install -d -m 0700 "$dir"
+
+db=$(docker ps -q --filter label=com.docker.compose.project=fitcoach --filter label=com.docker.compose.service=db)
+[[ -n $db ]] || { echo "fitcoach-backup: контейнер БД не запущен" >&2; exit 1; }
+docker exec "$db" sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > "$dir/db.dump"
+docker exec -i "$db" pg_restore --list < "$dir/db.dump" > /dev/null
+docker run --rm --network none -v fitcoach_files:/data:ro alpine:3.20 tar -C /data -czf - . > "$dir/files.tar.gz"
+git -c safe.directory='*' --git-dir="$GIT_DIR" bundle create "$dir/repo.bundle" --all 2>/dev/null
+(cd "$dir" && sha256sum db.dump files.tar.gz repo.bundle > SHA256SUMS)
+
+find "$ROOT" -mindepth 1 -maxdepth 1 -type d -mtime +"$KEEP_DAYS" -exec rm -rf {} +
+echo "$dir"

@@ -1,0 +1,6 @@
+*
+!frontend/
+!deploy/edge/
+**/node_modules
+**/dist
+**/.git

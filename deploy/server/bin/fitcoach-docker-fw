@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Фильтр DOCKER-USER: снаружи к контейнерам пускаем только на 80/443 (Docker обходит ufw).
+#   fitcoach-docker-fw apply | flush
+set -Eeuo pipefail
+
+ext_if=$(ip -o -4 route show to default | awk '{print $5; exit}')
+[[ -n $ext_if ]] || { echo "fitcoach-docker-fw: не найден внешний интерфейс" >&2; exit 1; }
+iptables -N DOCKER-USER 2>/dev/null || true
+
+case "${1:-apply}" in
+  apply)
+    iptables -F DOCKER-USER
+    iptables -A DOCKER-USER -i "$ext_if" -m conntrack --ctstate RELATED,ESTABLISHED -j RETURN
+    # TrafficGuard (antiscan) блокирует известные сканеры только во INPUT; применяем и к трафику в контейнеры.
+    if iptables -S SCANNERS-BLOCK >/dev/null 2>&1; then
+      iptables -A DOCKER-USER -i "$ext_if" -j SCANNERS-BLOCK
+    fi
+    iptables -A DOCKER-USER -i "$ext_if" -p tcp -m conntrack --ctorigdstport 80 -j RETURN
+    iptables -A DOCKER-USER -i "$ext_if" -p tcp -m conntrack --ctorigdstport 443 -j RETURN
+    iptables -A DOCKER-USER -i "$ext_if" -j DROP
+    iptables -A DOCKER-USER -j RETURN
+    ;;
+  flush)
+    iptables -F DOCKER-USER
+    iptables -A DOCKER-USER -j RETURN
+    ;;
+  *) echo "usage: fitcoach-docker-fw apply|flush" >&2; exit 2 ;;
+esac

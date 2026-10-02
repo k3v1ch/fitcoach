@@ -1,0 +1,14 @@
+[Unit]
+Description=FitCoach: снаружи к контейнерам только 80/443 (DOCKER-USER)
+Requires=docker.service
+After=docker.service ufw.service
+PartOf=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/fitcoach-docker-fw apply
+ExecStop=/usr/local/sbin/fitcoach-docker-fw flush
+
+[Install]
+WantedBy=multi-user.target

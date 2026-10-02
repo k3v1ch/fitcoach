@@ -1,0 +1,3 @@
+#!/bin/sh
+echo "Здесь только git push/pull. Статус CI: ssh git@<сервер> ci-status"
+exit 128

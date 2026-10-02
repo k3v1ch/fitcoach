@@ -1,0 +1,73 @@
+# Сайт ИС «ФитКоуч». ${DOMAIN} подставляет entrypoint образа nginx (envsubst).
+
+server {
+    listen 80 default_server;
+    server_name _;
+
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    # Проверочные файлы Let's Encrypt (certbot --webroot).
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        default_type text/plain;
+    }
+
+    location / {
+        return 301 https://${DOMAIN}$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl default_server;
+    http2 on;
+    server_name ${DOMAIN};
+
+    ssl_certificate     /etc/nginx/tls/fullchain.pem;
+    ssl_certificate_key /etc/nginx/tls/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:TLS:10m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;
+
+    root /usr/share/nginx/html;
+    limit_conn perip 50;
+
+    # Вход, регистрация, сброс пароля: 10 запросов в минуту с IP плюс всплеск 10.
+    location ~ ^/api/v1/auth/(login|register|password-reset) {
+        limit_req zone=auth burst=10 nodelay;
+        include /etc/nginx/snippets/security-headers.conf;
+        include /etc/nginx/snippets/proxy-backend.conf;
+    }
+
+    location /api/ {
+        limit_req zone=api burst=40 nodelay;
+        include /etc/nginx/snippets/security-headers.conf;
+        include /etc/nginx/snippets/proxy-backend.conf;
+    }
+
+    # Swagger UI и OpenAPI — для проверки API (ТЗ, 6.2).
+    location ~ ^/(swagger-ui|v3/api-docs) {
+        limit_req zone=api burst=40 nodelay;
+        include /etc/nginx/snippets/security-headers.conf;
+        include /etc/nginx/snippets/proxy-backend.conf;
+    }
+
+    # Статика сборки Vite: имена файлов с хешем, кэшируем надолго.
+    location /assets/ {
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        try_files $uri =404;
+    }
+
+    # SPA: неизвестные пути отдают index.html (history mode во Vue Router).
+    location / {
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Cache-Control "no-cache" always;
+        try_files $uri $uri/ /index.html;
+    }
+}

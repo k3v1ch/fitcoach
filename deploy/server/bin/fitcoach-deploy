@@ -1,0 +1,166 @@
+#!/usr/bin/env bash
+# Выкладка ФитКоуч на этот сервер.
+#   fitcoach-deploy <sha40>     — выложить коммит (образы собираются, если их ещё нет)
+#   fitcoach-deploy --rollback  — вернуть предыдущий успешный релиз
+#   fitcoach-deploy --status    — текущий релиз и контейнеры
+# Если после выкладки проверка здоровья не прошла — автоматически возвращает прежний релиз.
+set -Eeuo pipefail
+
+GIT_DIR=/home/git/Iinformation-system/.git
+BASE=/opt/fitcoach
+RELEASES=$BASE/releases
+ENV_FILE=$BASE/shared/.env
+HISTORY=/var/lib/fitcoach/deploy-history   # строки: <UTC> <sha40>
+PROJECT=fitcoach
+KEEP_RELEASES=5
+HEALTH_TIMEOUT=300
+
+log() { printf '[CI] %s\n' "$*"; }
+die() { log "ОШИБКА: $*"; exit 1; }
+short() { printf '%s' "${1:0:12}"; }
+git_() { git -c safe.directory='*' --git-dir="$GIT_DIR" "$@"; }
+domain() { sed -n 's/^DOMAIN=//p' "$ENV_FILE" | tail -n 1; }
+
+current_sha() {
+  local target
+  target=$(readlink "$BASE/current" 2>/dev/null) || return 0
+  basename "$target"
+}
+
+compose() {  # compose <sha40> <аргументы docker compose...>
+  local sha=$1
+  shift
+  IMAGE_TAG=$(short "$sha") docker compose -p "$PROJECT" --env-file "$ENV_FILE" \
+    -f "$RELEASES/$sha/deploy/docker-compose.yml" "$@"
+}
+
+export_release() {
+  local sha=$1 dir=$RELEASES/$1
+  [[ -d $dir ]] && return 0
+  rm -rf "$dir.tmp"
+  install -d -m 0755 "$dir.tmp"
+  git_ archive "$sha" | tar -x -C "$dir.tmp"
+  mv "$dir.tmp" "$dir"
+}
+
+build_images() {
+  local sha=$1 tag dir=$RELEASES/$1
+  tag=$(short "$sha")
+  if ! docker image inspect "fitcoach.local/backend:$tag" >/dev/null 2>&1; then
+    log "сборка образа backend:$tag"
+    docker build --progress=plain -t "fitcoach.local/backend:$tag" "$dir/backend"
+  fi
+  if ! docker image inspect "fitcoach.local/edge:$tag" >/dev/null 2>&1; then
+    log "сборка образа edge:$tag"
+    docker build --progress=plain -f "$dir/deploy/edge/Dockerfile" -t "fitcoach.local/edge:$tag" "$dir"
+  fi
+}
+
+wait_healthy() {
+  local deadline=$((SECONDS + HEALTH_TIMEOUT)) b e d
+  d=$(domain)
+  while (( SECONDS < deadline )); do
+    b=$(docker inspect -f '{{.State.Health.Status}}' "$PROJECT-backend-1" 2>/dev/null || echo missing)
+    e=$(docker inspect -f '{{.State.Health.Status}}' "$PROJECT-edge-1" 2>/dev/null || echo missing)
+    if [[ $b == healthy && $e == healthy ]] &&
+       curl -fsSk -o /dev/null --max-time 10 --resolve "$d:443:127.0.0.1" "https://$d/v3/api-docs"; then
+      return 0
+    fi
+    [[ $b == unhealthy ]] && return 1
+    sleep 5
+  done
+  return 1
+}
+
+record() {
+  ln -sfn "$RELEASES/$1" "$BASE/current"
+  printf '%s %s\n' "$(date -u +%FT%TZ)" "$1" >> "$HISTORY"
+}
+
+cleanup() {
+  local keep d s img tag
+  keep=$(tac "$HISTORY" | awk '!seen[$2]++ {print $2}' | head -n "$KEEP_RELEASES")
+  for d in "$RELEASES"/*; do
+    [[ -d $d ]] || continue
+    s=${d##*/}
+    grep -qx "$s" <<<"$keep" || rm -rf "$d"
+  done
+  docker images --format '{{.Repository}}:{{.Tag}}' | { grep -E '^fitcoach\.local/(backend|edge):' || true; } | while read -r img; do
+    tag=${img##*:}
+    grep -q "^$tag" <<<"$keep" || docker rmi "$img" >/dev/null 2>&1 || true
+  done
+  docker image prune -f >/dev/null
+  docker builder prune -f --filter until=72h >/dev/null 2>&1 || true
+}
+
+up_and_check() {  # up_and_check <sha40>
+  compose "$1" up -d --remove-orphans && wait_healthy
+}
+
+deploy() {
+  local sha=$1 prev
+  [[ $sha =~ ^[0-9a-f]{40}$ ]] || die "нужен полный sha коммита (40 символов)"
+  git_ cat-file -e "$sha^{commit}" 2>/dev/null || die "коммита $sha нет в репозитории"
+  [[ -f $ENV_FILE ]] || die "нет $ENV_FILE"
+  prev=$(current_sha)
+  export_release "$sha"
+  [[ -f $RELEASES/$sha/deploy/docker-compose.yml ]] || die "в коммите нет deploy/docker-compose.yml"
+  build_images "$sha"
+  /usr/local/sbin/fitcoach-cert link-only
+  if [[ -n $prev && $prev != "$sha" ]]; then
+    /usr/local/sbin/fitcoach-backup "pre-deploy-$(short "$sha")" >/dev/null || log "предупреждение: бэкап перед выкладкой не удался"
+  fi
+  log "выкладка $(short "$sha")"
+  if up_and_check "$sha"; then
+    record "$sha"
+    log "готово: на проде $(short "$sha")"
+    cleanup
+    return 0
+  fi
+  log "проверка здоровья не прошла"
+  compose "$sha" ps || true
+  compose "$sha" logs --tail 60 backend || true
+  if [[ -n $prev && $prev != "$sha" ]]; then
+    log "откат на $(short "$prev")"
+    if up_and_check "$prev"; then
+      log "откат выполнен, на проде $(short "$prev")"
+    else
+      log "ОТКАТ НЕ УДАЛСЯ — нужен ручной разбор"
+    fi
+  fi
+  return 1
+}
+
+rollback() {
+  local cur prev
+  cur=$(current_sha)
+  prev=$(awk -v cur="$cur" '$2 != cur {p = $2} END {print p}' "$HISTORY" 2>/dev/null || true)
+  [[ -n $prev ]] || die "нет предыдущего релиза"
+  export_release "$prev"
+  build_images "$prev"
+  log "откат на $(short "$prev")"
+  up_and_check "$prev" || die "откат не прошёл проверку здоровья"
+  record "$prev"
+  log "готово: на проде $(short "$prev")"
+}
+
+status() {
+  echo "текущий релиз: $(current_sha)"
+  echo "последние выкладки:"
+  tail -n 5 "$HISTORY" 2>/dev/null || true
+  docker ps -a --filter "label=com.docker.compose.project=$PROJECT" --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}'
+}
+
+install -d -m 0700 "$(dirname "$HISTORY")"
+case "${1:-}" in
+  --status) status ;;
+  --rollback)
+    exec 9>/run/fitcoach-deploy.lock
+    flock -w 1800 9 || die "другая выкладка не закончилась"
+    rollback ;;
+  ""|-h|--help) sed -n '2,6p' "$0" ;;
+  *)
+    exec 9>/run/fitcoach-deploy.lock
+    flock -w 1800 9 || die "другая выкладка не закончилась"
+    deploy "$1" ;;
+esac

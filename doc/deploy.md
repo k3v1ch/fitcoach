@@ -76,7 +76,7 @@ deploy/server/install.sh firewall   # ufw: только 22/80/443; DOCKER-USER: 
 deploy/server/install.sh ssh        # root только по ключу; git — пароль или ключ, git-shell без туннелей
 ```
 
-Проверка: `fitcoach-verify` — 25 проверок защиты и состояния; код выхода — число провалов.
+Проверка: `fitcoach-verify` — 26 проверок защиты и состояния; код выхода — число провалов.
 
 ## 4. Переменные `/opt/fitcoach/shared/.env`
 

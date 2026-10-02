@@ -1,8 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { ensureSession, currentOrganization, hasRole, homePath } from '../utils/session'
 
 // Auth
 import AuthView from '../views/auth/AuthView.vue'
 import RegisterConfirmView from '../views/auth/RegisterConfirmView.vue'
+import ResetPasswordView from '../views/auth/ResetPasswordView.vue'
+import OnboardingView from '../views/auth/OnboardingView.vue'
 
 // Trainer
 import DashboardView from '../views/trainer/DashboardView.vue'
@@ -52,8 +55,13 @@ import AthleteProfileView from '../views/athlete/AthleteProfileView.vue'
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    { path: '/', name: 'auth', component: AuthView },
-    { path: '/auth/register/confirm', name: 'register-confirm', component: RegisterConfirmView },
+    { path: '/', name: 'auth', component: AuthView, meta: { public: true } },
+    // Ссылки из писем бэкенда: PUBLIC_BASE_URL + /activate?token=… и /reset-password?token=…
+    { path: '/activate', name: 'activate', component: RegisterConfirmView, meta: { public: true } },
+    { path: '/auth/register/confirm', name: 'register-confirm', component: RegisterConfirmView, meta: { public: true } },
+    { path: '/reset-password', name: 'reset-password', component: ResetPasswordView, meta: { public: true } },
+    // Пользователь без организации: создать свою (станет тренером) или ждать приглашения
+    { path: '/onboarding', name: 'onboarding', component: OnboardingView },
 
     // ================= ТРЕНЕР =================
     {
@@ -117,8 +125,30 @@ const router = createRouter({
         { path: 'events', name: 'athlete-events', component: AthleteEventsView },
         { path: 'profile', name: 'athlete-profile', component: AthleteProfileView },
       ]
-    }
+    },
+
+    { path: '/:pathMatch(.*)*', redirect: '/' }
   ]
+})
+
+// Разделы кабинета и роли, которым они доступны
+const SECTION_ROLES = {
+  trainer: ['TRAINER', 'AGENCY'],
+  parent: ['PARENT'],
+  athlete: ['ATHLETE']
+}
+
+router.beforeEach(async (to) => {
+  if (to.meta.public) return true
+  if (!(await ensureSession())) {
+    return { path: '/', query: { next: to.fullPath } }
+  }
+  if (!currentOrganization.value) {
+    return to.path === '/onboarding' ? true : '/onboarding'
+  }
+  const allowed = SECTION_ROLES[to.path.split('/')[1]]
+  if (allowed && !allowed.some(hasRole)) return homePath()
+  return true
 })
 
 export default router

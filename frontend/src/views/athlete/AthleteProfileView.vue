@@ -203,7 +203,7 @@
                 </div>
                 <BaseIcon name="chevron-right" :size="15" color="#98A6A2" />
               </div>
-              <div class="security-action-item security-action-item--danger">
+              <div class="security-action-item security-action-item--danger" role="button" tabindex="0" @click="handleLogout" @keydown.enter="handleLogout">
                 <BaseIcon name="log-out" :size="17" color="#D64545" />
                 <div class="action-copy">
                   <span class="action-title">Выйти из аккаунта</span>
@@ -233,6 +233,8 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { logout } from '../../utils/session'
 import AthleteSidebar from '../../components/layout/AthleteSidebar.vue'
 import PageHeader from '../../components/layout/PageHeader.vue'
 import BaseButton from '../../components/ui/BaseButton.vue'
@@ -266,6 +268,13 @@ onMounted(() => {
     { id: 'results', title: 'Результаты и прогресс', description: 'Личные рекорды', enabled: false },
   ]
 })
+
+const logoutRouter = useRouter()
+
+async function handleLogout() {
+  await logout()
+  logoutRouter.push('/')
+}
 </script>
 
 <style scoped>

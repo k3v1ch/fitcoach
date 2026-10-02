@@ -12,11 +12,16 @@ export async function fetchCsrf() {
   return data
 }
 
-export async function apiFetch(path, options = {}) {
+export function resetCsrf() {
+  csrfToken = null
+}
+
+export async function apiFetch(path, options = {}, retried = false) {
   const method = (options.method || 'GET').toUpperCase()
   const headers = { ...(options.headers || {}) }
+  const isMutation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)
 
-  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+  if (isMutation) {
     if (!csrfToken) await fetchCsrf()
     headers[csrfHeaderName] = csrfToken
   }
@@ -29,6 +34,16 @@ export async function apiFetch(path, options = {}) {
   const res = await fetch(`${API_BASE}${path}`, {
     ...options, method, headers, credentials: 'include'
   })
+
+  // После входа сервер меняет сессию и присылает новый CSRF-токен в заголовке ответа.
+  const freshToken = res.headers.get(csrfHeaderName)
+  if (freshToken) csrfToken = freshToken
+
+  // Ошибка CSRF приходит как обычный 403: один раз берём свежий токен и повторяем запрос.
+  if (res.status === 403 && isMutation && !retried) {
+    resetCsrf()
+    return apiFetch(path, options, true)
+  }
 
   if (!res.ok) {
     let err = { code: 'UNKNOWN', message: `HTTP ${res.status}` }

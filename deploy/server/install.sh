@@ -2,7 +2,7 @@
 # Установка серверной части ФитКоуч (под root, из каталога репозитория):
 #   deploy/server/install.sh base      — скрипты, systemd-юниты, git-хуки, каталоги
 #   deploy/server/install.sh firewall  — ufw (только 22/80/443) и фильтр DOCKER-USER
-#   deploy/server/install.sh ssh       — усиление sshd, git-shell для git, fail2ban
+#   deploy/server/install.sh ssh       — усиление sshd, git-shell для git (fail2ban настраивается в /etc/fail2ban/jail.local)
 # Повторный запуск безопасен.
 set -Eeuo pipefail
 
@@ -55,8 +55,6 @@ ssh_harden() {
   systemctl reload-or-restart ssh
   grep -qx /usr/bin/git-shell /etc/shells || echo /usr/bin/git-shell >> /etc/shells
   usermod -s /usr/bin/git-shell git
-  install -m 0644 "$HERE"/fail2ban/fitcoach-sshd.local /etc/fail2ban/jail.d/
-  fail2ban-client reload >/dev/null
   echo "ssh: готово"
 }
 

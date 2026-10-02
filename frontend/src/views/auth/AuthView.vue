@@ -147,6 +147,8 @@ async function handleRegisterRequest() {
   isLoading.value = true
   try {
     await authApi.register(form.email, form.accountType)
+    // Подтверждение по ссылке из письма снова спрашивает тип аккаунта — подставим выбранный здесь
+    try { localStorage.setItem('fitcoach.registerAccountType', form.accountType) } catch (_) { /* приватный режим */ }
     successMessage.value = 'Если регистрация доступна — на email придёт письмо со ссылкой.'
   } catch (e) {
     errorMessage.value = e.message

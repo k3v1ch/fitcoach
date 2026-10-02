@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:-sports_organization}
+      POSTGRES_USER: ${DATABASE_USERNAME:-sports_organization}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-sports_organization_local}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: jdbc:postgresql://db:5432/${DATABASE_NAME:-sports_organization}
+      DATABASE_USERNAME: ${DATABASE_USERNAME:-sports_organization}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-sports_organization_local}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      FILES_ROOT: /app/data/files
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
+      SMTP_HOST: ${SMTP_HOST:-localhost}
+      SMTP_PORT: ${SMTP_PORT:-25}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@sports-organization.local}
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    volumes:
+      - uploaded_files:/app/data/files
+
+volumes:
+  postgres_data:
+  uploaded_files:

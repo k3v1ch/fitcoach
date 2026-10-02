@@ -45,6 +45,10 @@ const isLoading = ref(false)
 const errorMessage = ref('')
 
 onMounted(() => {
+  try {
+    const saved = localStorage.getItem('fitcoach.registerAccountType')
+    if (['ATHLETE', 'PARENT', 'TRAINER'].includes(saved)) form.accountType = saved
+  } catch (_) { /* приватный режим */ }
   token.value = route.query.token || ''
   if (!token.value) {
     errorMessage.value = 'Нет токена регистрации'
@@ -56,6 +60,7 @@ async function handleConfirm() {
   isLoading.value = true
   try {
     await authApi.registerConfirm(token.value, form.fullName, form.password, form.accountType)
+    try { localStorage.removeItem('fitcoach.registerAccountType') } catch (_) { /* приватный режим */ }
     router.push('/?registered=1')
   } catch (e) {
     errorMessage.value = e.message

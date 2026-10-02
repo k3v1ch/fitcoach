@@ -1,7 +1,7 @@
 package ru.sportorg.auth;
 
 import java.time.Instant;
-import java.time.ZoneOffset;
+import ru.sportorg.jdbc.JdbcTime;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -26,8 +26,8 @@ class AuthRateLimitRepository {
                         """)
                 .param("purpose", purpose)
                 .param("keyHash", keyHash)
-                .param("now", now.atOffset(ZoneOffset.UTC))
-                .param("allowedAfter", allowedAfter.atOffset(ZoneOffset.UTC))
+                .param("now", JdbcTime.toOffsetDateTime(now))
+                .param("allowedAfter", JdbcTime.toOffsetDateTime(allowedAfter))
                 .query(String.class)
                 .optional()
                 .isPresent();

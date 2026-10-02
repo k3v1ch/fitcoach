@@ -6,6 +6,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import ru.sportorg.jdbc.JdbcTime;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -104,7 +105,7 @@ class AthleteRepository {
                 .param("id", id).param("organizationId", organizationId).param("firstName", write.firstName().trim())
                 .param("lastName", write.lastName().trim()).param("middleName", write.middleName())
                 .param("birthDate", write.birthDate()).param("userId", write.userId()).param("status", write.status())
-                .param("enrolledOn", write.enrolledOn()).param("note", write.note()).param("now", now).update();
+                .param("enrolledOn", write.enrolledOn()).param("note", write.note()).param("now", JdbcTime.toOffsetDateTime(now)).update();
         return findById(organizationId, id).orElseThrow();
     }
 
@@ -128,7 +129,7 @@ class AthleteRepository {
                 .param("statusProvided", patch.has("status")).param("status", patch.status())
                 .param("enrolledOnProvided", patch.has("enrolledOn")).param("enrolledOn", patch.enrolledOn())
                 .param("noteProvided", patch.has("note")).param("note", patch.note())
-                .param("now", now).param("athleteId", athleteId).param("organizationId", organizationId).update();
+                .param("now", JdbcTime.toOffsetDateTime(now)).param("athleteId", athleteId).param("organizationId", organizationId).update();
     }
 
     void replaceParentLinks(UUID organizationId, UUID athleteId, List<ParentLinkWrite> links) {

@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import ru.sportorg.jdbc.JdbcTime;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -71,7 +72,7 @@ class OrganizationRepository {
                 .param("description", description)
                 .param("address", address)
                 .param("timezone", timezone)
-                .param("now", now)
+                .param("now", JdbcTime.toOffsetDateTime(now))
                 .query((resultSet, rowNumber) -> resultSet.getObject("id", UUID.class))
                 .single();
 
@@ -84,7 +85,7 @@ class OrganizationRepository {
                 .param("userId", creatorUserId)
                 .param("organizationId", organizationId)
                 .param("permissions", writeStringList(permissions))
-                .param("now", now)
+                .param("now", JdbcTime.toOffsetDateTime(now))
                 .update();
 
         return findOrganization(organizationId).orElseThrow();
@@ -122,7 +123,7 @@ class OrganizationRepository {
                 .param("address", patch.getAddress())
                 .param("timezoneProvided", patch.isTimezoneProvided())
                 .param("timezone", patch.getTimezone())
-                .param("updatedAt", updatedAt)
+                .param("updatedAt", JdbcTime.toOffsetDateTime(updatedAt))
                 .param("organizationId", organizationId)
                 .update();
     }
@@ -204,7 +205,7 @@ class OrganizationRepository {
                 .param("organizationId", organizationId)
                 .param("normalizedEmail", normalizedEmail)
                 .param("permissions", permissionsJson)
-                .param("updatedAt", updatedAt)
+                .param("updatedAt", JdbcTime.toOffsetDateTime(updatedAt))
                 .query((resultSet, rowNumber) -> new OrganizationMember(
                         resultSet.getObject("user_id", UUID.class),
                         resultSet.getString("full_name"),

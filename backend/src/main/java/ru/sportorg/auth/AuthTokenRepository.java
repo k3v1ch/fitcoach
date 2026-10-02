@@ -3,6 +3,7 @@ package ru.sportorg.auth;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
+import ru.sportorg.jdbc.JdbcTime;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -22,7 +23,7 @@ class AuthTokenRepository {
                         SET used_at = :now
                         WHERE user_id = :userId AND purpose = 'REGISTRATION' AND used_at IS NULL
                         """)
-                .param("now", now)
+                .param("now", JdbcTime.toOffsetDateTime(now))
                 .param("userId", userId)
                 .update();
     }
@@ -35,8 +36,8 @@ class AuthTokenRepository {
                 .param("userId", userId)
                 .param("purpose", purpose)
                 .param("tokenHash", tokenHash)
-                .param("expiresAt", expiresAt)
-                .param("now", now)
+                .param("expiresAt", JdbcTime.toOffsetDateTime(expiresAt))
+                .param("now", JdbcTime.toOffsetDateTime(now))
                 .update();
     }
 
@@ -51,7 +52,7 @@ class AuthTokenRepository {
                         FOR UPDATE
                         """)
                 .param("tokenHash", tokenHash)
-                .param("now", now)
+                .param("now", JdbcTime.toOffsetDateTime(now))
                 .query(UUID.class)
                 .optional();
     }
@@ -68,7 +69,7 @@ class AuthTokenRepository {
                                                 """)
                                 .param("tokenHash", tokenHash)
                                 .param("purpose", purpose)
-                                .param("now", now)
+                                .param("now", JdbcTime.toOffsetDateTime(now))
                                 .query(UUID.class)
                                 .optional();
         }
@@ -78,7 +79,7 @@ class AuthTokenRepository {
                                                 UPDATE auth_token SET used_at = :now
                                                 WHERE user_id = :userId AND purpose = :purpose AND used_at IS NULL
                                                 """)
-                                .param("now", now)
+                                .param("now", JdbcTime.toOffsetDateTime(now))
                                 .param("userId", userId)
                                 .param("purpose", purpose)
                                 .update();
@@ -86,7 +87,7 @@ class AuthTokenRepository {
 
     void markUsed(String tokenHash, Instant now) {
         jdbcClient.sql("UPDATE auth_token SET used_at = :now WHERE token_hash = :tokenHash AND used_at IS NULL")
-                .param("now", now)
+                .param("now", JdbcTime.toOffsetDateTime(now))
                 .param("tokenHash", tokenHash)
                 .update();
     }

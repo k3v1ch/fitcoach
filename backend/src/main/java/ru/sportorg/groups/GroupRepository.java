@@ -6,6 +6,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import ru.sportorg.jdbc.JdbcTime;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -47,13 +48,13 @@ class GroupRepository {
     Section insertSection(UUID org, SectionWrite write, Instant now) {
         UUID id = UUID.randomUUID();
         jdbc.sql("INSERT INTO section (id, organization_id, name, sport_type_id, description, status, created_at, updated_at) VALUES (:id, :org, :name, :sportTypeId, :description, :status, :now, :now)")
-                .param("id", id).param("org", org).param("name", write.name().trim()).param("sportTypeId", write.sportTypeId()).param("description", write.description()).param("status", write.status()).param("now", now).update();
+                .param("id", id).param("org", org).param("name", write.name().trim()).param("sportTypeId", write.sportTypeId()).param("description", write.description()).param("status", write.status()).param("now", JdbcTime.toOffsetDateTime(now)).update();
         return section(org, id).orElseThrow();
     }
 
     void patchSection(UUID org, UUID id, SectionPatch patch, Instant now) {
         jdbc.sql("UPDATE section SET name = CASE WHEN :nameProvided THEN :name ELSE name END, sport_type_id = CASE WHEN :sportTypeProvided THEN :sportTypeId ELSE sport_type_id END, description = CASE WHEN :descriptionProvided THEN :description ELSE description END, status = CASE WHEN :statusProvided THEN :status ELSE status END, updated_at = :now WHERE organization_id = :org AND id = :id")
-                .param("nameProvided", patch.has("name")).param("name", patch.name()).param("sportTypeProvided", patch.has("sportTypeId")).param("sportTypeId", patch.sportTypeId()).param("descriptionProvided", patch.has("description")).param("description", patch.description()).param("statusProvided", patch.has("status")).param("status", patch.status()).param("now", now).param("org", org).param("id", id).update();
+                .param("nameProvided", patch.has("name")).param("name", patch.name()).param("sportTypeProvided", patch.has("sportTypeId")).param("sportTypeId", patch.sportTypeId()).param("descriptionProvided", patch.has("description")).param("description", patch.description()).param("statusProvided", patch.has("status")).param("status", patch.status()).param("now", JdbcTime.toOffsetDateTime(now)).param("org", org).param("id", id).update();
     }
 
     long countGroups(UUID org, String q, UUID sectionId, UUID coachId, UUID athleteId, String status, UUID scopeUser, String scope) {
@@ -75,14 +76,14 @@ class GroupRepository {
     Group insertGroup(UUID org, GroupWrite write, Instant now) {
         UUID id = UUID.randomUUID();
         jdbc.sql("INSERT INTO sport_group (id, organization_id, section_id, name, description, status, created_at, updated_at) VALUES (:id, :org, :sectionId, :name, :description, :status, :now, :now)")
-                .param("id", id).param("org", org).param("sectionId", write.sectionId()).param("name", write.name().trim()).param("description", write.description()).param("status", write.status()).param("now", now).update();
+                .param("id", id).param("org", org).param("sectionId", write.sectionId()).param("name", write.name().trim()).param("description", write.description()).param("status", write.status()).param("now", JdbcTime.toOffsetDateTime(now)).update();
         replaceCoaches(id, write.coachIds());
         return group(org, id).orElseThrow();
     }
 
     void patchGroup(UUID org, UUID id, GroupPatch patch, Instant now) {
         jdbc.sql("UPDATE sport_group SET name = CASE WHEN :nameProvided THEN :name ELSE name END, description = CASE WHEN :descriptionProvided THEN :description ELSE description END, status = CASE WHEN :statusProvided THEN :status ELSE status END, updated_at = :now WHERE organization_id = :org AND id = :id")
-                .param("nameProvided", patch.has("name")).param("name", patch.name()).param("descriptionProvided", patch.has("description")).param("description", patch.description()).param("statusProvided", patch.has("status")).param("status", patch.status()).param("now", now).param("org", org).param("id", id).update();
+                .param("nameProvided", patch.has("name")).param("name", patch.name()).param("descriptionProvided", patch.has("description")).param("description", patch.description()).param("statusProvided", patch.has("status")).param("status", patch.status()).param("now", JdbcTime.toOffsetDateTime(now)).param("org", org).param("id", id).update();
         if (patch.has("coachIds")) replaceCoaches(id, patch.coachIds());
     }
 

@@ -3,6 +3,7 @@ package ru.sportorg.auth;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
+import ru.sportorg.jdbc.JdbcTime;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -43,7 +44,7 @@ class AccountRepository {
                 .param("normalizedEmail", normalizedEmail)
                 .param("fullName", fullName == null ? "" : fullName)
                 .param("accountType", accountType == null ? RegistrationAccountType.ATHLETE.name() : accountType.name())
-                .param("now", now)
+                .param("now", JdbcTime.toOffsetDateTime(now))
                 .query(UUID.class)
                 .optional();
     }
@@ -61,7 +62,7 @@ class AccountRepository {
                         WHERE id = :userId AND status = 'PENDING_EMAIL'
                         """)
                 .param("passwordHash", passwordHash)
-                .param("now", now)
+                .param("now", JdbcTime.toOffsetDateTime(now))
                 .param("fullNameProvided", fullNameProvided)
                 .param("fullName", fullName)
                 .param("accountType", accountType == null ? RegistrationAccountType.ATHLETE.name() : accountType.name())
@@ -91,7 +92,7 @@ class AccountRepository {
 
             void updateLastLogin(UUID userId, Instant loggedInAt) {
             jdbcClient.sql("UPDATE app_user SET last_login_at = :loggedInAt WHERE id = :userId")
-                .param("loggedInAt", loggedInAt)
+                .param("loggedInAt", JdbcTime.toOffsetDateTime(loggedInAt))
                 .param("userId", userId)
                 .update();
             }
@@ -103,7 +104,7 @@ class AccountRepository {
                                 WHERE id = :userId AND status = 'ACTIVE' AND email_verified_at IS NOT NULL
                                 """)
                         .param("passwordHash", passwordHash)
-                        .param("updatedAt", updatedAt)
+                        .param("updatedAt", JdbcTime.toOffsetDateTime(updatedAt))
                         .param("userId", userId)
                         .update() == 1;
             }

@@ -44,9 +44,9 @@ class AthleteRepository {
         return jdbcClient.sql("""
                         SELECT count(*) FROM athlete a
                         WHERE a.organization_id = :organizationId
-                          AND (:q IS NULL OR position(:q IN lower(concat_ws(' ', a.first_name, a.last_name, a.middle_name))) > 0)
-                          AND (:status IS NULL OR a.status = :status)
-                          AND (:userId IS NULL OR (:scope IN ('PARENT', 'BOTH') AND EXISTS (
+                          AND (CAST(:q AS text) IS NULL OR position(:q IN lower(concat_ws(' ', a.first_name, a.last_name, a.middle_name))) > 0)
+                          AND (CAST(:status AS text) IS NULL OR a.status = :status)
+                          AND (CAST(:userId AS uuid) IS NULL OR (:scope IN ('PARENT', 'BOTH') AND EXISTS (
                               SELECT 1 FROM parent_link pl WHERE pl.athlete_id = a.id AND pl.parent_user_id = :userId))
                               OR (:scope IN ('ATHLETE', 'BOTH') AND a.user_id = :userId))
                         """)
@@ -62,9 +62,9 @@ class AthleteRepository {
                                a.created_at, a.updated_at
                         FROM athlete a
                         WHERE a.organization_id = :organizationId
-                          AND (:q IS NULL OR position(:q IN lower(concat_ws(' ', a.first_name, a.last_name, a.middle_name))) > 0)
-                          AND (:status IS NULL OR a.status = :status)
-                          AND (:userId IS NULL OR (:scope IN ('PARENT', 'BOTH') AND EXISTS (
+                          AND (CAST(:q AS text) IS NULL OR position(:q IN lower(concat_ws(' ', a.first_name, a.last_name, a.middle_name))) > 0)
+                          AND (CAST(:status AS text) IS NULL OR a.status = :status)
+                          AND (CAST(:userId AS uuid) IS NULL OR (:scope IN ('PARENT', 'BOTH') AND EXISTS (
                               SELECT 1 FROM parent_link pl WHERE pl.athlete_id = a.id AND pl.parent_user_id = :userId))
                               OR (:scope IN ('ATHLETE', 'BOTH') AND a.user_id = :userId))
                         ORDER BY a.created_at DESC, a.id DESC LIMIT :limit OFFSET :offset
@@ -148,7 +148,7 @@ class AthleteRepository {
         return jdbcClient.sql("""
                 SELECT count(*) FROM membership
                 WHERE user_id = :userId AND organization_id = :organizationId AND status = 'ACTIVE'
-                  AND roles @> jsonb_build_array(:role)
+                  AND roles @> jsonb_build_array(CAST(:role AS text))
                 """).param("userId", userId).param("organizationId", organizationId).param("role", role)
                 .query(Long.class).single() > 0;
     }

@@ -29,6 +29,8 @@
       </router-link>
     </nav>
 
+    <OrganizationSwitcher />
+
     <!-- 👇 ПРОФИЛЬ СПОРТСМЕНА — ссылка -->
     <router-link to="/athlete/profile" class="profile" active-class="profile--active">
       <div class="avatar">{{ userInitials }}</div>
@@ -43,6 +45,7 @@
 <script setup>
 import { computed } from 'vue'
 import BaseIcon from '../ui/BaseIcon.vue'
+import OrganizationSwitcher from './OrganizationSwitcher.vue'
 import { currentUser, currentOrganization } from '../../utils/session'
 import { initials } from '../../utils/format'
 

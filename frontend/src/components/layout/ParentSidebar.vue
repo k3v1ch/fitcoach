@@ -14,6 +14,7 @@
       </div>
     </div>
 
+    <OrganizationSwitcher />
     <div v-if="myAthletes.length" class="child-switch">
       <label class="section-label" for="child-select">РЕБЁНОК</label>
       <select v-if="myAthletes.length > 1" id="child-select" class="child-select"
@@ -66,6 +67,7 @@
 <script setup>
 import { computed, ref, onMounted } from 'vue'
 import BaseIcon from '../ui/BaseIcon.vue'
+import OrganizationSwitcher from './OrganizationSwitcher.vue'
 import { currentUser, currentOrganization, myAthletes, selectedAthleteId, selectAthlete, loadMyAthletes } from '../../utils/session'
 import { fullName, initials as toInitials } from '../../utils/format'
 

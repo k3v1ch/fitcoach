@@ -68,6 +68,8 @@
       </router-link>
     </nav>
 
+    <OrganizationSwitcher />
+
     <!-- 👇 ПРОФИЛЬ ТРЕНЕРА — теперь ссылка -->
     <router-link to="/trainer/profile" class="profile" active-class="profile--active">
       <div class="avatar">{{ userInitials }}</div>
@@ -83,6 +85,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import BaseIcon from '../ui/BaseIcon.vue'
+import OrganizationSwitcher from './OrganizationSwitcher.vue'
 import { currentUser, currentOrganization, hasRole } from '../../utils/session'
 import { initials } from '../../utils/format'
 

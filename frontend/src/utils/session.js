@@ -84,6 +84,18 @@ export function selectAthlete(id) {
   } catch (_) { /* приватный режим браузера */ }
 }
 
+// Переключение организации: роли, права и все данные экранов другие — поэтому стартовая страница
+// новой роли открывается с полной перезагрузкой
+export function switchOrganization(id) {
+  const org = organizations.value.find(o => o.organizationId === id)
+  if (!org || org.organizationId === currentOrganization.value?.organizationId) return
+  saveOrganizationId(org.organizationId)
+  currentOrganization.value = org
+  myAthletes.value = []
+  selectAthlete(null)
+  window.location.assign(homePath())
+}
+
 export async function logout() {
   try {
     await authApi.logout()

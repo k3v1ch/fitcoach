@@ -65,6 +65,15 @@ class DocumentController {
         return service.documents(actor, organizationId, q, athleteId, type, expired, page, size);
     }
 
+    @PatchMapping("/documents/{documentId}")
+    Document patchDocument(
+            @AuthenticationPrincipal AuthenticatedUser actor,
+            @PathVariable UUID organizationId,
+            @PathVariable UUID documentId,
+            @RequestBody DocumentPatch patch) {
+        return service.patch(actor, organizationId, documentId, patch);
+    }
+
     @GetMapping("/documents/{documentId}")
     Document document(
             @AuthenticationPrincipal AuthenticatedUser actor,

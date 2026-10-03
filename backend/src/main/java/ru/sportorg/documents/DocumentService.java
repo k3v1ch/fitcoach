@@ -144,6 +144,36 @@ class DocumentService {
         }
     }
 
+    // Исправление названия и сроков (6.13, №061): documents.write либо автор своей записи; ведомству — нельзя
+    @Transactional
+    Document patch(AuthenticatedUser actor, UUID org, UUID id, DocumentPatch patch) {
+        Access access = require(actor, org, "documents.read");
+        var membership = repository.membership(actor.userId(), org);
+        Document document = repository.findDocument(org, id).orElseThrow(OrganizationNotFoundException::new);
+        if (access.self
+                && (document.athleteId() == null
+                || !repository.athleteVisible(org, document.athleteId(), actor.userId()))) {
+            throw new OrganizationNotFoundException();
+        }
+        if (membership.role("AGENCY")
+                || !(membership.permission("documents.write") || actor.userId().equals(document.createdBy()))) {
+            throw new OrganizationPermissionException();
+        }
+        if (patch == null || patch.isEmpty()) {
+            throw new OrganizationRequestException("Передайте хотя бы одно поле.");
+        }
+        if (patch.has("title") && (patch.title() == null || patch.title().isBlank() || patch.title().trim().length() > 200)) {
+            throw new OrganizationRequestException("Название документа: от 1 до 200 символов.");
+        }
+        LocalDate issuedOn = patch.has("issuedOn") ? patch.issuedOn() : document.issuedOn();
+        LocalDate validUntil = patch.has("validUntil") ? patch.validUntil() : document.validUntil();
+        if (issuedOn != null && validUntil != null && validUntil.isBefore(issuedOn)) {
+            throw new OrganizationRequestException("Срок действия не может закончиться раньше даты выдачи.");
+        }
+        repository.patchDocument(org, id, patch, clock.instant());
+        return repository.findDocument(org, id).orElseThrow(OrganizationNotFoundException::new);
+    }
+
     private StoredFile store(AuthenticatedUser actor, UUID org, MultipartFile file) {
         validateFile(file);
         String original = file.getOriginalFilename() == null

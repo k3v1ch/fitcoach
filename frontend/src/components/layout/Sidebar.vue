@@ -66,18 +66,28 @@
 
     <!-- 👇 ПРОФИЛЬ ТРЕНЕРА — теперь ссылка -->
     <router-link to="/trainer/profile" class="profile" active-class="profile--active">
-      <div class="avatar">АК</div>
+      <div class="avatar">{{ userInitials }}</div>
       <div class="profile-info">
-        <div class="profile-name">Алексей Крылов</div>
-        <div class="profile-role">Старший тренер</div>
+        <div class="profile-name">{{ userName }}</div>
+        <div class="profile-role">{{ userRole }}</div>
       </div>
     </router-link>
   </aside>
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import BaseIcon from '../ui/BaseIcon.vue'
+import { currentUser, currentOrganization, hasRole } from '../../utils/session'
+import { initials } from '../../utils/format'
+
+const userName = computed(() => currentUser.value?.fullName?.trim() || currentUser.value?.email || '—')
+const userInitials = computed(() => initials(userName.value))
+const userRole = computed(() => {
+  const role = hasRole('TRAINER') ? 'Тренер' : hasRole('AGENCY') ? 'Представитель ведомства' : ''
+  return [role, currentOrganization.value?.organizationName].filter(Boolean).join(' · ')
+})
 
 const route = useRoute()
 const isActive = (path) => route.path.startsWith(path)

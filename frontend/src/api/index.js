@@ -1,5 +1,10 @@
 const API_BASE = import.meta.env.VITE_API_URL || '/api/v1'
 
+// Полный URL ресурса API — для ссылок на скачивание (cookie сессии уходят сами: тот же домен)
+export function apiUrl(path) {
+  return `${API_BASE}${path}`
+}
+
 let csrfToken = null
 let csrfHeaderName = 'X-CSRF-TOKEN'
 

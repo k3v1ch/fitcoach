@@ -17,5 +17,13 @@ export const organizationsApi = {
   },
   members(organizationId, params = {}) {
     return api.get(`/organizations/${organizationId}/members`, params)
+  },
+  // Добавить активированный аккаунт родителя в организацию по email (роль PARENT)
+  addParent(organizationId, email) {
+    return api.post(`/organizations/${organizationId}/members/parents`, { email })
+  },
+  // Родители и их дети: Page<{ userId, fullName, email, athletes: [{ id, fullName }] }>
+  parents(organizationId, params = {}) {
+    return api.get(`/organizations/${organizationId}/parents`, params)
   }
 }

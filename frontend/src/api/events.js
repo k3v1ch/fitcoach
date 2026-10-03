@@ -13,6 +13,9 @@ export const eventsApi = {
   update(organizationId, eventId, data) {
     return api.patch(`/organizations/${organizationId}/events/${eventId}`, data)
   },
+  participants(organizationId, eventId, params = {}) {
+    return api.get(`/organizations/${organizationId}/events/${eventId}/participants`, params)
+  },
   addParticipants(organizationId, eventId, athleteIds) {
     return api.put(`/organizations/${organizationId}/events/${eventId}/participants`, { athleteIds })
   },

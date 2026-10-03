@@ -14,6 +14,16 @@
       </div>
     </div>
 
+    <div v-if="myAthletes.length" class="child-switch">
+      <label class="section-label" for="child-select">РЕБЁНОК</label>
+      <select v-if="myAthletes.length > 1" id="child-select" class="child-select"
+              :value="selectedAthleteId" @change="selectAthlete($event.target.value)">
+        <option v-for="a in myAthletes" :key="a.id" :value="a.id">{{ fullName(a) }}</option>
+      </select>
+      <div v-else class="child-name">{{ fullName(myAthletes[0]) }}</div>
+    </div>
+    <div v-else-if="childrenLoaded" class="child-switch child-empty">Ребёнок ещё не привязан — обратитесь к тренеру</div>
+
     <nav class="nav-links">
       <div class="section-label">МЕНЮ РОДИТЕЛЯ</div>
       <router-link to="/parent/dashboard" class="nav-item" active-class="active">
@@ -54,32 +64,25 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import BaseIcon from '../ui/BaseIcon.vue'
-import { currentUser, currentOrganization } from '../../utils/session'
+import { currentUser, currentOrganization, myAthletes, selectedAthleteId, selectAthlete, loadMyAthletes } from '../../utils/session'
+import { fullName, initials as toInitials } from '../../utils/format'
 
-const userName = computed(() => {
-  return currentUser.value?.fullName?.trim() || 'Алексей Ковалев'
-})
+const userName = computed(() => currentUser.value?.fullName?.trim() || currentUser.value?.email || '—')
+const userRole = computed(() => ['Родитель', currentOrganization.value?.organizationName].filter(Boolean).join(' · '))
+const initials = computed(() => toInitials(userName.value))
 
-const userRole = computed(() => {
-  const roles = currentOrganization.value?.roles || []
-  if (roles.includes('PARENT')) return 'Родитель'
-  if (roles.includes('TRAINER')) return 'Тренер'
-  if (roles.includes('ATHLETE')) return 'Спортсмен'
-  return 'Родитель' // fallback, чтобы не было пусто
-})
-
-const initials = computed(() => {
-  const name = currentUser.value?.fullName?.trim() || 'Алексей Ковалев'
-  const parts = name.split(' ').filter(Boolean)
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[1][0]).toUpperCase()
+// Список детей общий для всех экранов родителя (utils/session.js); экраны следят за selectedAthleteId
+const childrenLoaded = ref(false)
+onMounted(async () => {
+  try {
+    if (!myAthletes.value.length) await loadMyAthletes()
+  } catch (_) {
+    // ошибку покажет сам экран при загрузке данных
+  } finally {
+    childrenLoaded.value = true
   }
-  if (parts.length === 1) {
-    return parts[0].slice(0, 2).toUpperCase()
-  }
-  return 'АК' // fallback
 })
 </script>
 
@@ -176,4 +179,12 @@ const initials = computed(() => {
   text-overflow: ellipsis;
 }
 .profile-role { color: #98A6A2; font-size: 11px; }
+.child-switch { margin: 0 0 16px; display: flex; flex-direction: column; gap: 6px; }
+.child-select {
+  width: 100%; padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12);
+  background: #19332F; color: white; font-size: 13px; cursor: pointer;
+}
+.child-select:focus { outline: 2px solid #C4F000; outline-offset: 1px; }
+.child-name { color: white; font-size: 13px; font-weight: 600; }
+.child-empty { color: #98A6A2; font-size: 12px; line-height: 1.4; }
 </style>

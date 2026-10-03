@@ -20,12 +20,14 @@
         />
       </div>
       <slot name="actions" />
+      <NotificationBell v-if="showBell" />
     </div>
   </header>
 </template>
 
 <script setup>
 import BaseIcon from '../ui/BaseIcon.vue'
+import NotificationBell from './NotificationBell.vue'
 
 defineProps({
   title: String,
@@ -81,22 +83,6 @@ defineEmits(['back', 'update:modelValue'])
   border: none; outline: none;
   font-size: 13px; width: 100%;
   background: transparent;
-}
-
-.icon-btn {
-  position: relative;
-  width: 44px; height: 44px;
-  background: white;
-  border: 1px solid #E3EAE8;
-  border-radius: 12px;
-  display: flex; justify-content: center; align-items: center;
-  cursor: pointer;
-}
-.badge {
-  position: absolute; top: -4px; right: -4px;
-  background: #D64545; color: white;
-  font-size: 10px; font-weight: 700;
-  padding: 2px 6px; border-radius: 99px;
 }
 
 @media (max-width: 768px) {

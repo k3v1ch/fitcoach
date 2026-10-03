@@ -1,6 +1,9 @@
 package ru.sportorg.trainings;
 
 import java.time.Clock;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
@@ -19,6 +22,7 @@ import ru.sportorg.organizations.OrganizationRequestException;
 @Service
 class TrainingService {
     private static final List<String> STATUSES = List.of("PLANNED", "COMPLETED", "CANCELLED");
+    private static final List<String> ATTENDANCE_STATUSES = List.of("UNMARKED", "PRESENT", "SICK", "ABSENT");
     private final TrainingRepository repository;
     private final ObjectMapper mapper;
     private final Clock clock;
@@ -29,9 +33,10 @@ class TrainingService {
         this.clock = clock;
     }
 
-    TrainingPage find(AuthenticatedUser actor, UUID org, String q, Instant from, Instant to, UUID groupId, UUID coachId, String status, int page, int size) {
-        require(actor, org, "schedule.read"); if (from == null || to == null || !from.isBefore(to)) throw new OrganizationRequestException("from и to должны задавать непустой диапазон."); validatePage(page, size); if (status != null && !STATUSES.contains(status)) throw new OrganizationRequestException("Недопустимый статус тренировки.");
-        String query = q == null || q.isBlank() ? null : q.trim().toLowerCase(Locale.ROOT); long total = repository.count(org, query, from, to, groupId, coachId, status); return new TrainingPage(repository.find(org, query, from, to, groupId, coachId, status, size, page * size), page, size, total, (int) Math.ceil((double) total / size));
+    TrainingPage find(AuthenticatedUser actor, UUID org, String q, Instant from, Instant to, UUID groupId, UUID coachId, UUID athleteId, String status, int page, int size) {
+        var membership = require(actor, org, "schedule.read");
+        UUID scopeUserId = selfOnly(membership) ? actor.userId() : null; if (from == null || to == null || !from.isBefore(to)) throw new OrganizationRequestException("from и to должны задавать непустой диапазон."); validatePage(page, size); if (status != null && !STATUSES.contains(status)) throw new OrganizationRequestException("Недопустимый статус тренировки.");
+        String query = q == null || q.isBlank() ? null : q.trim().toLowerCase(Locale.ROOT); long total = repository.count(org, query, from, to, groupId, coachId, athleteId, status, scopeUserId); return new TrainingPage(repository.find(org, query, from, to, groupId, coachId, athleteId, status, scopeUserId, size, page * size), page, size, total, (int) Math.ceil((double) total / size));
     }
 
     Training get(AuthenticatedUser actor, UUID org, UUID id) {
@@ -110,6 +115,33 @@ class TrainingService {
                 || coaches.stream().anyMatch(id -> !repository.activeCoach(id, org))) {
             throw new OrganizationRequestException("Все тренеры должны иметь активную роль TRAINER.");
         }
+    }
+
+    AttendanceList attendanceJournal(AuthenticatedUser actor, UUID org, LocalDate from, LocalDate to, UUID athleteId, UUID groupId, String status, int page, int size) {
+        var membership = require(actor, org, "attendance.read");
+        if (from == null || to == null || from.isAfter(to)) {
+            throw new OrganizationRequestException("Укажите период: from не позже to.");
+        }
+        if (status != null && !ATTENDANCE_STATUSES.contains(status)) {
+            throw new OrganizationRequestException("Недопустимый статус посещения.");
+        }
+        validatePage(page, size);
+        UUID scopeUserId = selfOnly(membership) ? actor.userId() : null;
+        Instant now = clock.instant();
+        long total = repository.journalCount(org, from, to, athleteId, groupId, status, scopeUserId, now);
+        TrainingRepository.JournalCounts counts = repository.journalSummary(org, from, to, athleteId, groupId, scopeUserId, now);
+        int marked = counts.present() + counts.sick() + counts.absent();
+        BigDecimal percent = marked == 0 ? null
+                : BigDecimal.valueOf(counts.present()).multiply(BigDecimal.valueOf(100)).divide(BigDecimal.valueOf(marked), 2, RoundingMode.HALF_UP);
+        AttendanceSummary summary = new AttendanceSummary(from, to, counts.trainingCount(), counts.participantRecords(),
+                counts.present(), counts.sick(), counts.absent(), counts.unmarked(), percent);
+        return new AttendanceList(repository.journal(org, from, to, athleteId, groupId, status, scopeUserId, now, size, page * size),
+                page, size, total, (int) Math.ceil((double) total / size), summary);
+    }
+
+    // Родитель и спортсмен без ролей тренера или ведомства видят только своих детей / себя
+    private boolean selfOnly(TrainingRepository.MembershipAccess membership) {
+        return (membership.role("PARENT") || membership.role("ATHLETE")) && !membership.role("TRAINER") && !membership.role("AGENCY");
     }
 
     private void requireTrainer(AuthenticatedUser actor, UUID org, String permission) {

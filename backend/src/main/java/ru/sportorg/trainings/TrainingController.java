@@ -27,10 +27,11 @@ class TrainingController {
             @RequestParam Instant to,
             @RequestParam(required = false) UUID groupId,
             @RequestParam(required = false) UUID coachId,
+            @RequestParam(required = false) UUID athleteId,
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return service.find(actor, organizationId, q, from, to, groupId, coachId, status, page, size);
+        return service.find(actor, organizationId, q, from, to, groupId, coachId, athleteId, status, page, size);
     }
 
     @PostMapping

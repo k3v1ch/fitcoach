@@ -133,9 +133,9 @@ class OrganizationRepository {
                         SELECT count(*)
                         FROM membership m JOIN app_user u ON u.id = m.user_id
                         WHERE m.organization_id = :organizationId
-                          AND (:q IS NULL OR position(:q IN lower(u.full_name)) > 0)
-                          AND (:role IS NULL OR m.roles @> jsonb_build_array(:role))
-                          AND (:status IS NULL OR m.status = :status)
+                          AND (CAST(:q AS text) IS NULL OR position(:q IN lower(u.full_name)) > 0)
+                          AND (CAST(:role AS text) IS NULL OR m.roles @> jsonb_build_array(CAST(:role AS text)))
+                          AND (CAST(:status AS text) IS NULL OR m.status = :status)
                         """)
                 .param("organizationId", organizationId)
                 .param("q", q)
@@ -151,9 +151,9 @@ class OrganizationRepository {
                         SELECT u.id AS user_id, u.full_name, m.roles::text AS roles, m.status
                         FROM membership m JOIN app_user u ON u.id = m.user_id
                         WHERE m.organization_id = :organizationId
-                          AND (:q IS NULL OR position(:q IN lower(u.full_name)) > 0)
-                          AND (:role IS NULL OR m.roles @> jsonb_build_array(:role))
-                          AND (:status IS NULL OR m.status = :status)
+                          AND (CAST(:q AS text) IS NULL OR position(:q IN lower(u.full_name)) > 0)
+                          AND (CAST(:role AS text) IS NULL OR m.roles @> jsonb_build_array(CAST(:role AS text)))
+                          AND (CAST(:status AS text) IS NULL OR m.status = :status)
                         ORDER BY u.created_at DESC, u.id DESC
                         LIMIT :limit OFFSET :offset
                         """)

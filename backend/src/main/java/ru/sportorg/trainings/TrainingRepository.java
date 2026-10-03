@@ -33,6 +33,38 @@ class TrainingRepository {
     List<UUID> participantIds(UUID trainingId) { return jdbc.sql("SELECT ga.athlete_id FROM group_athlete ga JOIN training t ON t.group_id = ga.group_id WHERE t.id = :trainingId AND ga.joined_on <= (t.starts_at AT TIME ZONE 'UTC')::date AND (ga.left_on IS NULL OR ga.left_on >= (t.starts_at AT TIME ZONE 'UTC')::date)").param("trainingId", trainingId).query(UUID.class).list(); }
     void snapshotAttendance(UUID trainingId, Instant now) { jdbc.sql("INSERT INTO attendance (training_id, athlete_id, status) SELECT :trainingId, athlete_id, 'UNMARKED' FROM (SELECT ga.athlete_id FROM group_athlete ga JOIN training t ON t.group_id = ga.group_id WHERE t.id = :trainingId AND ga.joined_on <= (t.starts_at AT TIME ZONE 'UTC')::date AND (ga.left_on IS NULL OR ga.left_on >= (t.starts_at AT TIME ZONE 'UTC')::date)) x ON CONFLICT DO NOTHING").param("trainingId", trainingId).param("now", JdbcTime.toOffsetDateTime(now)).update(); }
     void saveAttendance(UUID trainingId, AttendanceWrite item, UUID actorId, Instant now) { jdbc.sql("UPDATE attendance SET status = :status, reason = :reason, comment = :comment, marked_by = :actor, marked_at = :now WHERE training_id = :trainingId AND athlete_id = :athleteId").param("status", item.status()).param("reason", item.reason()).param("comment", item.comment()).param("actor", actorId).param("now", JdbcTime.toOffsetDateTime(now)).param("trainingId", trainingId).param("athleteId", item.athleteId()).update(); }
+    // Отметки тренировки и участники состава на её дату, у которых отметки ещё нет (UNMARKED)
+    List<Attendance> attendanceWithParticipants(UUID trainingId) {
+        return jdbc.sql("WITH t AS (SELECT group_id, (starts_at AT TIME ZONE 'UTC')::date d FROM training WHERE id = :id),"
+                        + " marks AS (SELECT a.athlete_id, a.status, a.reason, a.comment, a.marked_by, a.marked_at FROM attendance a WHERE a.training_id = :id"
+                        + " UNION ALL SELECT ga.athlete_id, 'UNMARKED', NULL, NULL, NULL, NULL FROM group_athlete ga JOIN t ON t.group_id = ga.group_id"
+                        + " WHERE ga.joined_on <= t.d AND (ga.left_on IS NULL OR ga.left_on >= t.d)"
+                        + " AND NOT EXISTS (SELECT 1 FROM attendance x WHERE x.training_id = :id AND x.athlete_id = ga.athlete_id))"
+                        + " SELECT m.athlete_id, concat_ws(' ', at.first_name, at.last_name, at.middle_name) athlete_name, m.status, m.reason, m.comment, m.marked_by, m.marked_at"
+                        + " FROM marks m JOIN athlete at ON at.id = m.athlete_id ORDER BY athlete_name, m.athlete_id")
+                .param("id", trainingId)
+                .query((rs, row) -> new Attendance(trainingId, rs.getObject("athlete_id", UUID.class), rs.getString("athlete_name"),
+                        rs.getString("status"), rs.getString("reason"), rs.getString("comment"), rs.getObject("marked_by", UUID.class),
+                        rs.getTimestamp("marked_at") == null ? null : rs.getTimestamp("marked_at").toInstant()))
+                .list();
+    }
+
+    // Тренировка группы, где на её дату состоит ребёнок родителя или сам спортсмен
+    boolean visibleTo(UUID org, UUID trainingId, UUID userId) {
+        return jdbc.sql("SELECT count(*) FROM training t JOIN organization o ON o.id = t.organization_id WHERE t.organization_id = :org AND t.id = :id"
+                        + " AND EXISTS (SELECT 1 FROM group_athlete ga JOIN athlete a ON a.id = ga.athlete_id WHERE ga.group_id = t.group_id"
+                        + " AND ga.joined_on <= (t.starts_at AT TIME ZONE o.timezone)::date AND (ga.left_on IS NULL OR ga.left_on >= (t.starts_at AT TIME ZONE o.timezone)::date)"
+                        + " AND (a.user_id = :userId OR EXISTS (SELECT 1 FROM parent_link pl WHERE pl.athlete_id = a.id AND pl.parent_user_id = :userId)))")
+                .param("org", org).param("id", trainingId).param("userId", userId).query(Long.class).single() > 0;
+    }
+
+    // Свои карточки: дети родителя и карточка самого спортсмена
+    List<UUID> ownAthleteIds(UUID org, UUID userId) {
+        return jdbc.sql("SELECT a.id FROM athlete a WHERE a.organization_id = :org AND (a.user_id = :userId"
+                        + " OR EXISTS (SELECT 1 FROM parent_link pl WHERE pl.athlete_id = a.id AND pl.parent_user_id = :userId))")
+                .param("org", org).param("userId", userId).query(UUID.class).list();
+    }
+
     List<Attendance> attendance(UUID trainingId) { return jdbc.sql("SELECT a.training_id, a.athlete_id, concat_ws(' ', at.first_name, at.last_name, at.middle_name) athlete_name, a.status, a.reason, a.comment, a.marked_by, a.marked_at FROM attendance a JOIN athlete at ON at.id = a.athlete_id WHERE a.training_id = :id ORDER BY athlete_name, a.athlete_id").param("id", trainingId).query((rs, row) -> new Attendance(rs.getObject("training_id", UUID.class), rs.getObject("athlete_id", UUID.class), rs.getString("athlete_name"), rs.getString("status"), rs.getString("reason"), rs.getString("comment"), rs.getObject("marked_by", UUID.class), rs.getTimestamp("marked_at") == null ? null : rs.getTimestamp("marked_at").toInstant())).list(); }
     private Training map(java.sql.ResultSet rs) throws java.sql.SQLException { UUID id = rs.getObject("id", UUID.class); List<UUID> coaches = jdbc.sql("SELECT coach_id FROM training_coach WHERE training_id = :id ORDER BY coach_id").param("id", id).query(UUID.class).list(); return new Training(id, rs.getObject("organization_id", UUID.class), rs.getString("title"), rs.getObject("group_id", UUID.class), coaches, rs.getObject("venue_id", UUID.class), rs.getObject("type_id", UUID.class), rs.getTimestamp("starts_at").toInstant(), rs.getTimestamp("ends_at").toInstant(), readPlan(rs.getString("plan")), rs.getString("comment"), rs.getString("status"), rs.getString("cancel_reason"), rs.getTimestamp("created_at").toInstant(), rs.getTimestamp("updated_at").toInstant()); }
     private List<TrainingStage> readPlan(String json) { try { return mapper.readValue(json, new TypeReference<>() { }); } catch (java.io.IOException e) { throw new IllegalStateException("Stored training plan is invalid", e); } }

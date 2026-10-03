@@ -43,11 +43,11 @@ class TrainingController {
     }
 
     @GetMapping("/{trainingId}")
-    Training get(
+    TrainingDetail get(
             @AuthenticationPrincipal AuthenticatedUser actor,
             @PathVariable UUID organizationId,
             @PathVariable UUID trainingId) {
-        return service.get(actor, organizationId, trainingId);
+        return service.detail(actor, organizationId, trainingId);
     }
 
     @PatchMapping("/{trainingId}")

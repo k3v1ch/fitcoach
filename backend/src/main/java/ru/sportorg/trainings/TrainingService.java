@@ -39,9 +39,26 @@ class TrainingService {
         String query = q == null || q.isBlank() ? null : q.trim().toLowerCase(Locale.ROOT); long total = repository.count(org, query, from, to, groupId, coachId, athleteId, status, scopeUserId); return new TrainingPage(repository.find(org, query, from, to, groupId, coachId, athleteId, status, scopeUserId, size, page * size), page, size, total, (int) Math.ceil((double) total / size));
     }
 
-    Training get(AuthenticatedUser actor, UUID org, UUID id) {
-        require(actor, org, "schedule.read");
-        return repository.findById(org, id).orElseThrow(OrganizationNotFoundException::new);
+    // 6.8, №029: каждый раздел — по своему праву; родитель и спортсмен — только тренировки своих групп и свои отметки
+    TrainingDetail detail(AuthenticatedUser actor, UUID org, UUID id) {
+        if (actor == null || !repository.organizationExists(org)) throw new OrganizationNotFoundException();
+        var membership = repository.membership(actor.userId(), org).orElseThrow(OrganizationNotFoundException::new);
+        boolean schedule = membership.permission("schedule.read");
+        boolean reports = membership.permission("trainingReports.read");
+        boolean marks = membership.permission("attendance.read");
+        if (!schedule && !reports && !marks) throw new OrganizationPermissionException();
+        Training training = repository.findById(org, id).orElseThrow(OrganizationNotFoundException::new);
+        boolean self = selfOnly(membership);
+        if (self && !repository.visibleTo(org, id, actor.userId())) throw new OrganizationNotFoundException();
+        List<Attendance> attendance = null;
+        if (marks) {
+            attendance = repository.attendanceWithParticipants(id);
+            if (self) {
+                java.util.Set<UUID> own = java.util.Set.copyOf(repository.ownAthleteIds(org, actor.userId()));
+                attendance = attendance.stream().filter(item -> own.contains(item.athleteId())).toList();
+            }
+        }
+        return new TrainingDetail(id, schedule ? training : null, reports ? repository.report(id).orElse(null) : null, attendance);
     }
 
     TrainingReport saveReport(AuthenticatedUser actor, UUID org, UUID id, TrainingReportWrite write) {

@@ -30,5 +30,27 @@ class AnnouncementRepository {
     private Announcement map(java.sql.ResultSet rs) throws java.sql.SQLException { return new Announcement(rs.getObject("id", UUID.class), rs.getObject("organization_id", UUID.class), rs.getString("title"), rs.getString("text"), rs.getString("category"), rs.getBoolean("requires_response"), rs.getTimestamp("response_deadline") == null ? null : rs.getTimestamp("response_deadline").toInstant(), readIds(rs.getString("files")), rs.getString("status"), rs.getObject("created_by", UUID.class), rs.getTimestamp("published_at") == null ? null : rs.getTimestamp("published_at").toInstant(), rs.getTimestamp("created_at").toInstant(), rs.getTimestamp("updated_at").toInstant(), rs.getTimestamp("read_at") == null ? null : rs.getTimestamp("read_at").toInstant(), rs.getString("my_response")); }
     private List<String> read(String value) { try { return mapper.readValue(value, new TypeReference<>() { }); } catch (java.io.IOException e) { throw new IllegalStateException("Stored announcement data is invalid", e); } }
     private List<UUID> readIds(String value) { try { return mapper.readValue(value, new TypeReference<>() { }); } catch (java.io.IOException e) { throw new IllegalStateException("Stored announcement data is invalid", e); } }
+    boolean exists(UUID org, UUID id) { return jdbc.sql("SELECT count(*) FROM announcement WHERE organization_id = :org AND id = :id").param("org", org).param("id", id).query(Long.class).single() > 0; }
+    long countRecipients(UUID id) { return jdbc.sql("SELECT count(*) FROM announcement_recipient WHERE announcement_id = :id").param("id", id).query(Long.class).single(); }
+    List<AnnouncementRecipient> recipients(UUID id, int limit, int offset) {
+        return jdbc.sql("SELECT r.user_id, u.full_name, r.read_at, lr.response, lr.responded_at FROM announcement_recipient r JOIN app_user u ON u.id = r.user_id"
+                        + " LEFT JOIN LATERAL (SELECT ar.response, ar.responded_at FROM announcement_response ar WHERE ar.announcement_id = r.announcement_id AND ar.user_id = r.user_id ORDER BY ar.responded_at DESC LIMIT 1) lr ON true"
+                        + " WHERE r.announcement_id = :id ORDER BY u.full_name, r.user_id LIMIT :limit OFFSET :offset")
+                .param("id", id).param("limit", limit).param("offset", offset)
+                .query((rs, row) -> new AnnouncementRecipient(rs.getObject("user_id", UUID.class), rs.getString("full_name"),
+                        rs.getTimestamp("read_at") == null ? null : rs.getTimestamp("read_at").toInstant(), rs.getString("response"),
+                        rs.getTimestamp("responded_at") == null ? null : rs.getTimestamp("responded_at").toInstant()))
+                .list();
+    }
+    long countResponses(UUID id, UUID userId) { return jdbc.sql("SELECT count(*) FROM announcement_response WHERE announcement_id = :id AND (CAST(:userId AS uuid) IS NULL OR user_id = :userId)").param("id", id).param("userId", userId).query(Long.class).single(); }
+    List<AnnouncementResponseEntry> responses(UUID id, UUID userId, int limit, int offset) {
+        return jdbc.sql("SELECT ar.id, ar.announcement_id, ar.user_id, u.full_name, ar.response, ar.comment, ar.responded_at FROM announcement_response ar JOIN app_user u ON u.id = ar.user_id"
+                        + " WHERE ar.announcement_id = :id AND (CAST(:userId AS uuid) IS NULL OR ar.user_id = :userId) ORDER BY ar.responded_at DESC, ar.id DESC LIMIT :limit OFFSET :offset")
+                .param("id", id).param("userId", userId).param("limit", limit).param("offset", offset)
+                .query((rs, row) -> new AnnouncementResponseEntry(rs.getObject("id", UUID.class), rs.getObject("announcement_id", UUID.class),
+                        rs.getObject("user_id", UUID.class), rs.getString("full_name"), rs.getString("response"), rs.getString("comment"),
+                        rs.getTimestamp("responded_at").toInstant()))
+                .list();
+    }
     record MembershipAccess(List<String> roles, List<String> permissions) { boolean role(String value) { return roles.contains(value); } boolean permission(String value) { return permissions.contains(value); } }
 }

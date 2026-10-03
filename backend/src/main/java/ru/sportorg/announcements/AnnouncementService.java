@@ -97,6 +97,27 @@ class AnnouncementService {
         repository.response(id, actor.userId(), response, comment, clock.instant());
     }
 
+    // Аудитория объявления (6.12, №051): полный список получателей — только тренеру и ведомству
+    AnnouncementAudiencePages.RecipientPage recipients(AuthenticatedUser actor, UUID org, UUID id, int page, int size) {
+        Access access = require(actor, org, "announcements.read");
+        if (!access.manager()) throw new OrganizationPermissionException();
+        page(page, size);
+        if (!repository.exists(org, id)) throw new OrganizationNotFoundException();
+        long total = repository.countRecipients(id);
+        return new AnnouncementAudiencePages.RecipientPage(repository.recipients(id, size, page * size), page, size, total, pages(total, size));
+    }
+
+    // История ответов (6.12, №054): тренер и ведомство — все ответы, получатель — только свои
+    AnnouncementAudiencePages.ResponsePage responses(AuthenticatedUser actor, UUID org, UUID id, int page, int size) {
+        Access access = require(actor, org, "announcements.read");
+        page(page, size);
+        if (!repository.exists(org, id)) throw new OrganizationNotFoundException();
+        UUID onlyUser = access.manager() ? null : actor.userId();
+        if (onlyUser != null && !repository.recipient(id, onlyUser)) throw new OrganizationNotFoundException();
+        long total = repository.countResponses(id, onlyUser);
+        return new AnnouncementAudiencePages.ResponsePage(repository.responses(id, onlyUser, size, page * size), page, size, total, pages(total, size));
+    }
+
     private Access require(AuthenticatedUser actor, UUID org, String permission) {
         if (actor == null || !repository.organizationExists(org)) {
             throw new OrganizationNotFoundException();

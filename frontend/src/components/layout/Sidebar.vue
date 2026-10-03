@@ -50,6 +50,10 @@
         <BaseIcon name="map" :color="isActive('/trainer/events') ? '#B7F34B' : '#98A6A2'" />
         <span>Сборы</span>
       </router-link>
+      <router-link to="/trainer/announcements" class="nav-item" active-class="active">
+        <BaseIcon name="message" :color="isActive('/trainer/announcements') ? '#B7F34B' : '#98A6A2'" />
+        <span>Объявления</span>
+      </router-link>
       <router-link to="/trainer/finance" class="nav-item" active-class="active">
         <BaseIcon name="credit-card" :color="isActive('/trainer/finance') ? '#B7F34B' : '#98A6A2'" />
         <span>Финансы</span>

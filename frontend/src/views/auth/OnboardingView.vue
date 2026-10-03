@@ -6,12 +6,24 @@
       </div>
 
       <h2>Вы ещё не в организации</h2>
-      <p>
-        Тренер может создать свою организацию и сразу стать её тренером.
-        Родителей и спортсменов добавляет тренер — попросите его пригласить вас по email.
+      <p v-if="!isTrainer">
+        Родителей и спортсменов добавляет тренер. Сообщите ему email, с которым вы вошли:
+      </p>
+      <p v-else>
+        Создайте свою организацию — вы сразу станете её тренером. Родителей и спортсменов
+        потом добавите по email в разделе «Управление».
       </p>
 
-      <form @submit.prevent="handleCreate" class="confirm-form">
+      <template v-if="!isTrainer">
+        <div class="email-box">{{ email }}</div>
+        <div v-if="checkMessage" class="info-box">{{ checkMessage }}</div>
+        <BaseButton type="button" :loading="isChecking" @click="handleCheck">Проверить ещё раз</BaseButton>
+        <button v-if="!showCreate" type="button" class="back-link create-link" @click="showCreate = true">
+          Я тренер — создать организацию
+        </button>
+      </template>
+
+      <form v-if="isTrainer || showCreate" @submit.prevent="handleCreate" class="confirm-form form-gap">
         <BaseInput id="ob-name" label="Название организации" v-model="form.name" placeholder="СШ «Олимп»" />
         <BaseInput id="ob-address" label="Адрес (необязательно)" v-model="form.address" placeholder="г. Москва, ул. Спортивная, 1" />
 
@@ -25,20 +37,20 @@
         <div v-if="errorMessage" class="error-box">{{ errorMessage }}</div>
 
         <BaseButton type="submit" :loading="isLoading">Создать организацию</BaseButton>
-        <button type="button" class="back-link" @click="handleLogout">Выйти из аккаунта</button>
       </form>
+      <button type="button" class="back-link logout-link" @click="handleLogout">Выйти из аккаунта</button>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { computed, ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import BaseLogo from '../../components/ui/BaseLogo.vue'
 import BaseInput from '../../components/ui/BaseInput.vue'
 import BaseButton from '../../components/ui/BaseButton.vue'
 import { organizationsApi } from '../../api/organizations'
-import { loadSession, logout, homePath } from '../../utils/session'
+import { currentUser, loadSession, logout, homePath, organizations } from '../../utils/session'
 
 const TIMEZONES = [
   { id: 'Europe/Kaliningrad', label: 'Калининград (UTC+2)' },
@@ -65,6 +77,37 @@ function defaultTimezone() {
 }
 
 const router = useRouter()
+
+function savedAccountType() {
+  try {
+    return localStorage.getItem('fitcoach.accountType')
+  } catch (_) {
+    return null
+  }
+}
+
+const isTrainer = savedAccountType() === 'TRAINER'
+const showCreate = ref(false)
+const email = computed(() => currentUser.value?.email || '')
+const isChecking = ref(false)
+const checkMessage = ref('')
+
+async function handleCheck() {
+  isChecking.value = true
+  checkMessage.value = ''
+  try {
+    await loadSession()
+    if (organizations.value.length) {
+      router.push(homePath())
+    } else {
+      checkMessage.value = 'Пока вас не добавили. Как только тренер добавит ваш email, нажмите кнопку ещё раз.'
+    }
+  } catch (e) {
+    checkMessage.value = e.message
+  } finally {
+    isChecking.value = false
+  }
+}
 const form = reactive({ name: '', address: '', timezone: defaultTimezone() })
 const isLoading = ref(false)
 const errorMessage = ref('')
@@ -120,4 +163,12 @@ async function handleLogout() {
 .error-box { padding: 10px 12px; background: #FCE2E5; color: #D64545; border-radius: 8px; font-size: 12px; }
 .back-link { background: none; border: none; font-size: 13px; color: #6D7D79; cursor: pointer; }
 .back-link:hover { color: #152421; }
+.email-box {
+  padding: 12px 14px; margin-bottom: 16px; background: #F4F7F8; border-radius: 12px;
+  font-size: 15px; font-weight: 700; color: #152421; text-align: center; word-break: break-all;
+}
+.info-box { padding: 10px 12px; margin-bottom: 16px; background: #DDECFB; color: #35678E; border-radius: 8px; font-size: 12px; }
+.create-link { display: block; margin: 16px auto 0; }
+.form-gap { margin-top: 20px; }
+.logout-link { display: block; margin: 16px auto 0; }
 </style>

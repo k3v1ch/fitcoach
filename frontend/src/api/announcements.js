@@ -10,8 +10,10 @@ export const announcementsApi = {
   create(organizationId, data) {
     return api.post(`/organizations/${organizationId}/announcements`, data)
   },
-  update(organizationId, announcementId, data) {
-    return api.patch(`/organizations/${organizationId}/announcements/${announcementId}`, data)
+  // data — полный AnnouncementWrite; status (DRAFT | PUBLISHED | ARCHIVED) — параметр запроса.
+  // Черновик меняется целиком; опубликованное можно только архивировать (содержимое при этом не меняется)
+  update(organizationId, announcementId, data, status = 'DRAFT') {
+    return api.patch(`/organizations/${organizationId}/announcements/${announcementId}?status=${encodeURIComponent(status)}`, data)
   },
   markRead(organizationId, announcementId) {
     return api.put(`/organizations/${organizationId}/announcements/${announcementId}/read`)

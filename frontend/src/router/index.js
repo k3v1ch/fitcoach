@@ -19,6 +19,7 @@ import TrainingsView from '../views/trainer/TrainingsView.vue'
 import AttendanceView from '../views/trainer/AttendanceView.vue'
 import ProgressView from '../views/trainer/ProgressView.vue'
 import EventsView from '../views/trainer/EventsView.vue'
+import AnnouncementsView from '../views/trainer/AnnouncementsView.vue'
 import ReportsView from '../views/trainer/ReportsView.vue'
 import GroupCardView from '../views/trainer/GroupCardView.vue'
 import TrainingReportView from '../views/trainer/TrainingReportView.vue'
@@ -82,6 +83,7 @@ const router = createRouter({
         { path: 'attendance', name: 'trainer-attendance', component: AttendanceView },
         { path: 'progress', name: 'trainer-progress', component: ProgressView },
         { path: 'events', name: 'trainer-events', component: EventsView },
+        { path: 'announcements', name: 'trainer-announcements', component: AnnouncementsView },
         { path: 'reports', name: 'trainer-reports', component: ReportsView },
         { path: 'management/users', name: 'trainer-management-users', component: ManagementUsersView },
         { path: 'management/directories', name: 'trainer-management-directories', component: ManagementDirectoriesView },

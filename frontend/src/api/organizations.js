@@ -22,6 +22,11 @@ export const organizationsApi = {
   addParent(organizationId, email) {
     return api.post(`/organizations/${organizationId}/members/parents`, { email })
   },
+  // Добавить активированный аккаунт спортсмена в организацию по email (роль ATHLETE);
+  // возвращённый userId затем указывается в карточке спортсмена (athletesApi.update → userId)
+  addAthlete(organizationId, email) {
+    return api.post(`/organizations/${organizationId}/members/athletes`, { email })
+  },
   // Родители и их дети: Page<{ userId, fullName, email, athletes: [{ id, fullName }] }>
   parents(organizationId, params = {}) {
     return api.get(`/organizations/${organizationId}/parents`, params)

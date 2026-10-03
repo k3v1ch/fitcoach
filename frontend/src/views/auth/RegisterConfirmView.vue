@@ -60,7 +60,11 @@ async function handleConfirm() {
   isLoading.value = true
   try {
     await authApi.registerConfirm(token.value, form.fullName, form.password, form.accountType)
-    try { localStorage.removeItem('fitcoach.registerAccountType') } catch (_) { /* приватный режим */ }
+    try {
+      localStorage.removeItem('fitcoach.registerAccountType')
+      // подсказка для экрана «Вы ещё не в организации»: тренеру — создать свою, остальным — ждать приглашения
+      localStorage.setItem('fitcoach.accountType', form.accountType)
+    } catch (_) { /* приватный режим */ }
     router.push('/?registered=1')
   } catch (e) {
     errorMessage.value = e.message

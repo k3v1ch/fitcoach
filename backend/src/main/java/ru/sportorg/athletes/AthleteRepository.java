@@ -176,6 +176,47 @@ class AthleteRepository {
         }
     }
 
+    private static final String PARENTS_WHERE = """
+            FROM membership m JOIN app_user u ON u.id = m.user_id
+            WHERE m.organization_id = :organizationId AND m.status = 'ACTIVE' AND m.roles @> '["PARENT"]'::jsonb
+              AND (CAST(:q AS text) IS NULL OR position(:q IN lower(concat_ws(' ', u.full_name, u.email))) > 0)
+              AND (CAST(:athleteId AS uuid) IS NULL OR EXISTS (SELECT 1 FROM parent_link pl
+                   WHERE pl.organization_id = m.organization_id AND pl.parent_user_id = u.id AND pl.athlete_id = :athleteId))
+            """;
+
+    long countParents(UUID organizationId, String q, UUID athleteId) {
+        return jdbcClient.sql("SELECT count(*) " + PARENTS_WHERE)
+                .param("organizationId", organizationId).param("q", q).param("athleteId", athleteId)
+                .query(Long.class).single();
+    }
+
+    List<Parent> parents(UUID organizationId, String q, UUID athleteId, int limit, int offset) {
+        List<Parent> parents = jdbcClient.sql("SELECT u.id, u.full_name, u.email " + PARENTS_WHERE
+                        + " ORDER BY u.full_name, u.id LIMIT :limit OFFSET :offset")
+                .param("organizationId", organizationId).param("q", q).param("athleteId", athleteId)
+                .param("limit", limit).param("offset", offset)
+                .query((rs, row) -> new Parent(rs.getObject("id", UUID.class), rs.getString("full_name"),
+                        rs.getString("email"), new java.util.ArrayList<>()))
+                .list();
+        if (parents.isEmpty()) return parents;
+        java.util.Map<UUID, Parent> byId = new java.util.HashMap<>();
+        parents.forEach(parent -> byId.put(parent.userId(), parent));
+        jdbcClient.sql("""
+                        SELECT pl.parent_user_id, a.id, concat_ws(' ', a.last_name, a.first_name, a.middle_name) full_name
+                        FROM parent_link pl JOIN athlete a ON a.id = pl.athlete_id
+                        WHERE pl.organization_id = :organizationId AND pl.parent_user_id IN (:parentIds)
+                        ORDER BY a.last_name, a.first_name, a.id
+                        """)
+                .param("organizationId", organizationId).param("parentIds", byId.keySet())
+                .query((rs, row) -> {
+                    byId.get(rs.getObject("parent_user_id", UUID.class)).athletes()
+                            .add(new Parent.Child(rs.getObject("id", UUID.class), rs.getString("full_name")));
+                    return null;
+                })
+                .list();
+        return parents;
+    }
+
     record MembershipAccess(List<String> roles, List<String> permissions) {
         boolean hasPermission(String permission) { return permissions.contains(permission); }
         boolean hasRole(String role) { return roles.contains(role); }

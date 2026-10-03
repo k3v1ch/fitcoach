@@ -24,6 +24,44 @@ class FinanceController {
         return service.createCharge(actor, organizationId, write);
     }
 
+    @GetMapping("/charges")
+    ChargePage charges(
+            @AuthenticationPrincipal AuthenticatedUser actor,
+            @PathVariable UUID organizationId,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) UUID athleteId,
+            @RequestParam(required = false) UUID sectionId,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) UUID eventId,
+            @RequestParam(required = false) String paymentStatus,
+            @RequestParam(required = false) Boolean isOverdue,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) LocalDate dueFrom,
+            @RequestParam(required = false) LocalDate dueTo,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return service.charges(actor, organizationId, q, athleteId, sectionId, type, eventId, paymentStatus, isOverdue,
+                status, dueFrom, dueTo, page, size);
+    }
+
+    @PatchMapping("/charges/{chargeId}")
+    Charge updateCharge(
+            @AuthenticationPrincipal AuthenticatedUser actor,
+            @PathVariable UUID organizationId,
+            @PathVariable UUID chargeId,
+            @RequestBody ChargePatch patch) {
+        return service.updateCharge(actor, organizationId, chargeId, patch);
+    }
+
+    @PostMapping("/payments/{paymentId}/void")
+    PaymentResult voidPayment(
+            @AuthenticationPrincipal AuthenticatedUser actor,
+            @PathVariable UUID organizationId,
+            @PathVariable UUID paymentId,
+            @RequestBody PaymentVoid request) {
+        return service.voidPayment(actor, organizationId, paymentId, request);
+    }
+
     @GetMapping("/charges/{chargeId}")
     Charge getCharge(
             @AuthenticationPrincipal AuthenticatedUser actor,

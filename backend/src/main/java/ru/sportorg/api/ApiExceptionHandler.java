@@ -6,6 +6,7 @@ import java.util.UUID;
 import ru.sportorg.auth.InvalidRegistrationTokenException;
 import ru.sportorg.auth.InvalidCredentialsException;
 import ru.sportorg.auth.RegistrationRateLimitException;
+import ru.sportorg.organizations.OrganizationConflictException;
 import ru.sportorg.organizations.OrganizationNotFoundException;
 import ru.sportorg.organizations.OrganizationPermissionException;
 import ru.sportorg.organizations.OrganizationRequestException;
@@ -51,6 +52,11 @@ class ApiExceptionHandler {
     @ExceptionHandler(OrganizationRequestException.class)
     ResponseEntity<ApiError> invalidOrganizationRequest(OrganizationRequestException exception) {
         return error(HttpStatus.BAD_REQUEST, "INVALID_FIELDS", exception.getMessage(), List.of());
+    }
+
+    @ExceptionHandler(OrganizationConflictException.class)
+    ResponseEntity<ApiError> organizationConflict(OrganizationConflictException exception) {
+        return error(HttpStatus.CONFLICT, "CONFLICT", exception.getMessage(), List.of());
     }
 
     @ExceptionHandler(OrganizationNotFoundException.class)

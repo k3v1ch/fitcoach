@@ -1,5 +1,11 @@
 package ru.sportorg.trainings;
 
+import ru.sportorg.notifications.NotificationService;
+import org.springframework.beans.factory.annotation.Autowired;
+import java.util.Set;
+import java.util.Objects;
+import java.util.LinkedHashSet;
+import java.util.ArrayList;
 import java.time.Clock;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -27,10 +33,18 @@ class TrainingService {
     private final ObjectMapper mapper;
     private final Clock clock;
 
+    private final NotificationService notifications;
+
     TrainingService(TrainingRepository repository, ObjectMapper mapper, Clock clock) {
+        this(repository, mapper, clock, null);
+    }
+
+    @Autowired
+    TrainingService(TrainingRepository repository, ObjectMapper mapper, Clock clock, NotificationService notifications) {
         this.repository = repository;
         this.mapper = mapper;
         this.clock = clock;
+        this.notifications = notifications;
     }
 
     TrainingPage find(AuthenticatedUser actor, UUID org, String q, Instant from, Instant to, UUID groupId, UUID coachId, UUID athleteId, String status, int page, int size) {
@@ -104,7 +118,46 @@ class TrainingService {
         if (patch.has("startsAt") && patch.has("endsAt") && !patch.startsAt().isBefore(patch.endsAt())) throw new OrganizationRequestException("endsAt должен быть позже startsAt.");
         if (patch.has("groupId") && !repository.groupActive(patch.groupId(), org)) throw new OrganizationRequestException("Группа не найдена или архивирована.");
         if (patch.has("coachIds")) validateCoaches(org, patch.coachIds());
-        repository.patch(org, id, patch, patch.has("plan") ? json(patch.plan()) : "[]", clock.instant()); return repository.findById(org, id).orElseThrow();
+        boolean cancel = patch.has("status");
+        boolean moved = patch.has("startsAt") && !patch.startsAt().toInstant().equals(current.startsAt());
+        boolean endChanged = patch.has("endsAt") && !patch.endsAt().toInstant().equals(current.endsAt());
+        boolean venueChanged = patch.has("venueId") && !Objects.equals(patch.venueId(), current.venueId());
+        boolean groupChanged = patch.has("groupId") && !Objects.equals(patch.groupId(), current.groupId());
+        boolean notify = notifications != null && (cancel || moved || endChanged || venueChanged || groupChanged);
+        // при смене группы уведомляются и прежние участники
+        List<UUID> before = notify ? notifications.trainingAudience(id) : List.of();
+        repository.patch(org, id, patch, patch.has("plan") ? json(patch.plan()) : "[]", clock.instant());
+        Training updated = repository.findById(org, id).orElseThrow();
+        if (notify) notifyParticipants(actor, org, current, updated, patch, before, cancel, moved, endChanged, venueChanged, groupChanged);
+        return updated;
+    }
+
+    // ТЗ: изменение и отмена тренировки с автоматическим уведомлением участников
+    private void notifyParticipants(AuthenticatedUser actor, UUID org, Training current, Training updated, TrainingPatch patch,
+                                    List<UUID> before, boolean cancel, boolean moved, boolean endChanged,
+                                    boolean venueChanged, boolean groupChanged) {
+        Set<UUID> users = new LinkedHashSet<>(before);
+        users.addAll(notifications.trainingAudience(current.id()));
+        String was = notifications.when(org, current.startsAt());
+        String type = "TRAINING_CHANGED";
+        String title;
+        String text;
+        if (cancel) {
+            type = "TRAINING_CANCELLED";
+            title = "Тренировка отменена";
+            text = "«" + current.title() + "», " + was + ", отменена. Причина: " + patch.cancelReason().trim();
+        } else if (moved) {
+            title = "Тренировка перенесена";
+            text = "«" + updated.title() + "»: было " + was + ", стало " + notifications.when(org, updated.startsAt()) + ".";
+        } else {
+            List<String> changes = new ArrayList<>();
+            if (venueChanged) changes.add("изменено место проведения");
+            if (endChanged) changes.add("окончание в " + notifications.when(org, updated.endsAt()));
+            if (groupChanged) changes.add("изменена группа");
+            title = "Изменения в тренировке";
+            text = "«" + updated.title() + "», " + was + ": " + String.join(", ", changes) + ".";
+        }
+        notifications.notifyUsers(org, users, actor.userId(), type, title, text, "TRAINING", current.id());
     }
 
     private void validateWrite(UUID org, TrainingWrite write) {

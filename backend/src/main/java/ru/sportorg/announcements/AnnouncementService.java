@@ -1,5 +1,7 @@
 package ru.sportorg.announcements;
 
+import ru.sportorg.notifications.NotificationService;
+import org.springframework.beans.factory.annotation.Autowired;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -21,10 +23,18 @@ class AnnouncementService {
     private final ObjectMapper mapper;
     private final Clock clock;
 
+    private final NotificationService notifications;
+
     AnnouncementService(AnnouncementRepository repository, ObjectMapper mapper, Clock clock) {
+        this(repository, mapper, clock, null);
+    }
+
+    @Autowired
+    AnnouncementService(AnnouncementRepository repository, ObjectMapper mapper, Clock clock, NotificationService notifications) {
         this.repository = repository;
         this.mapper = mapper;
         this.clock = clock;
+        this.notifications = notifications;
     }
 
     AnnouncementPage find(
@@ -91,6 +101,12 @@ class AnnouncementService {
             throw new OrganizationRequestException("Для объявления с ответом нужен срок.");
         }
         repository.patch(org, id, write, json(write.attachmentFileIds()), status, clock.instant());
+        if (notifications != null && "PUBLISHED".equals(status)) {
+            String text = write.title().trim() + (write.requiresResponse()
+                    ? ". Нужен ответ до " + notifications.when(org, write.responseDeadline().toInstant()) + "." : ".");
+            notifications.notifyUsers(org, write.recipientUserIds(), actor.userId(), "ANNOUNCEMENT_PUBLISHED",
+                    "Новое объявление", text, "ANNOUNCEMENT", id);
+        }
         return repository.find(org, id, actor.userId()).orElseThrow();
     }
 

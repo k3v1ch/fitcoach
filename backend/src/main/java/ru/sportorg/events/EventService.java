@@ -1,5 +1,7 @@
 package ru.sportorg.events;
 
+import ru.sportorg.notifications.NotificationService;
+import org.springframework.beans.factory.annotation.Autowired;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -24,10 +26,18 @@ class EventService {
     private final ObjectMapper mapper;
     private final Clock clock;
 
+    private final NotificationService notifications;
+
     EventService(EventRepository repository, ObjectMapper mapper, Clock clock) {
+        this(repository, mapper, clock, null);
+    }
+
+    @Autowired
+    EventService(EventRepository repository, ObjectMapper mapper, Clock clock, NotificationService notifications) {
         this.repository = repository;
         this.mapper = mapper;
         this.clock = clock;
+        this.notifications = notifications;
     }
 
     EventPage find(
@@ -101,7 +111,26 @@ class EventService {
                 patch,
                 patch.has("requiredDocumentTypes") ? json(patch.requiredDocumentTypes()) : "[]",
                 clock.instant());
-        return repository.findById(org, id).orElseThrow();
+        Event updated = repository.findById(org, id).orElseThrow();
+        // Ф7.7: публикация — приглашение участникам, отмена опубликованного — уведомление
+        if (notifications != null && patch.has("status")) {
+            if ("DRAFT".equals(current.status()) && "PUBLISHED".equals(updated.status())) {
+                notifications.notifyUsers(org, notifications.eventAudience(id), actor.userId(), "EVENT_PUBLISHED",
+                        "Приглашение на мероприятие", describe(org, updated) + " Ответьте об участии в личном кабинете.", "EVENT", id);
+            } else if ("PUBLISHED".equals(current.status()) && "CANCELLED".equals(updated.status())) {
+                notifications.notifyUsers(org, notifications.eventAudience(id), actor.userId(), "EVENT_CANCELLED",
+                        "Мероприятие отменено", "«" + updated.title() + "» отменено.", "EVENT", id);
+            }
+        }
+        return updated;
+    }
+
+    private String describe(UUID org, Event event) {
+        StringBuilder text = new StringBuilder("«").append(event.title()).append("»");
+        if (event.startsAt() != null) text.append(", ").append(notifications.when(org, event.startsAt()));
+        else if (event.collectionDueOn() != null) text.append(", сбор до ").append(notifications.day(event.collectionDueOn()));
+        if (event.location() != null && !event.location().isBlank()) text.append(", ").append(event.location().trim());
+        return text.append(".").toString();
     }
 
     @Transactional
@@ -114,7 +143,12 @@ class EventService {
             throw new OrganizationRequestException(
                     "Участники должны быть спортсменами этой организации и мероприятие должно быть опубликовано или черновиком.");
         }
+        List<UUID> invited = athleteIds.stream().distinct().filter(athleteId -> !repository.participant(eventId, athleteId)).toList();
         repository.addParticipants(eventId, athleteIds);
+        if (notifications != null && "PUBLISHED".equals(event.status()) && !invited.isEmpty()) {
+            notifications.notifyUsers(org, notifications.athletesAudience(invited), actor.userId(), "EVENT_INVITED",
+                    "Приглашение на мероприятие", describe(org, event) + " Ответьте об участии в личном кабинете.", "EVENT", eventId);
+        }
     }
 
     @Transactional

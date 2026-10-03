@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.sportorg.auth.AuthenticatedUser;
+import ru.sportorg.organizations.OrganizationConflictException;
 import ru.sportorg.organizations.OrganizationNotFoundException;
 import ru.sportorg.organizations.OrganizationPermissionException;
 import ru.sportorg.organizations.OrganizationRequestException;
@@ -30,12 +31,16 @@ class AnnouncementService {
         AuthenticatedUser actor, UUID org, String q, String status,
         boolean unread, Boolean requiresResponse, int page, int size
     ) {
-        require(actor, org, "announcements.read");
+        // Черновики видит только автор с announcements.write, опубликованное и архив — получатели,
+        // тренер и ведомство (6.12, №047)
+        Access access = require(actor, org, "announcements.read");
         page(page, size);
         String query = q == null || q.isBlank() ? null : q.trim().toLowerCase();
-        long total = repository.count(org, query, actor.userId(), status, unread, requiresResponse);
+        long total = repository.count(org, query, actor.userId(), status, unread, requiresResponse,
+                access.writer(), access.manager());
         return new AnnouncementPage(
-                repository.findPage(org, query, actor.userId(), status, unread, requiresResponse, size, page * size),
+                repository.findPage(org, query, actor.userId(), status, unread, requiresResponse,
+                        access.writer(), access.manager(), size, page * size),
                 page,
                 size,
                 total,
@@ -43,8 +48,13 @@ class AnnouncementService {
     }
 
     Announcement get(AuthenticatedUser actor, UUID org, UUID id) {
-        require(actor, org, "announcements.read");
-        return repository.find(org, id, actor.userId()).orElseThrow(OrganizationNotFoundException::new);
+        Access access = require(actor, org, "announcements.read");
+        Announcement announcement = repository.find(org, id, actor.userId()).orElseThrow(OrganizationNotFoundException::new);
+        boolean visible = "DRAFT".equals(announcement.status())
+                ? access.writer()
+                : access.manager() || repository.recipient(id, actor.userId());
+        if (!visible) throw new OrganizationNotFoundException();
+        return announcement;
     }
 
     @Transactional
@@ -60,16 +70,27 @@ class AnnouncementService {
     @Transactional
     Announcement patch(AuthenticatedUser actor, UUID org, UUID id, AnnouncementWrite write, String status) {
         requireTrainer(actor, org, "announcements.write");
-        Announcement current = repository.find(org, id, actor.userId())
-                .orElseThrow(OrganizationNotFoundException::new);
-        if (!"DRAFT".equals(current.status()) && !"ARCHIVED".equals(status)) {
-            throw new OrganizationRequestException("После публикации объявление можно только архивировать.");
-        }
         if (!List.of("DRAFT", "PUBLISHED", "ARCHIVED").contains(status)) {
             throw new OrganizationRequestException("Недопустимый статус объявления.");
         }
+        Announcement current = repository.find(org, id, actor.userId())
+                .orElseThrow(OrganizationNotFoundException::new);
+        if ("ARCHIVED".equals(current.status())) {
+            throw new OrganizationConflictException("Архивное объявление доступно только для чтения.");
+        }
+        if (!"DRAFT".equals(current.status())) {
+            // После публикации текст, вложения и получатели зафиксированы — меняется только статус
+            if (!"ARCHIVED".equals(status)) {
+                throw new OrganizationRequestException("После публикации объявление можно только архивировать.");
+            }
+            repository.archive(org, id, clock.instant());
+            return repository.find(org, id, actor.userId()).orElseThrow();
+        }
         validateRecipients(org, write.recipientUserIds());
-        repository.patch(org, id, write, status, clock.instant());
+        if (write.requiresResponse() && write.responseDeadline() == null) {
+            throw new OrganizationRequestException("Для объявления с ответом нужен срок.");
+        }
+        repository.patch(org, id, write, json(write.attachmentFileIds()), status, clock.instant());
         return repository.find(org, id, actor.userId()).orElseThrow();
     }
 
@@ -127,7 +148,8 @@ class AnnouncementService {
         if (!membership.permission(permission)) {
             throw new OrganizationPermissionException();
         }
-        return new Access(membership.role("TRAINER") || membership.role("AGENCY"));
+        return new Access(membership.role("TRAINER") || membership.role("AGENCY"),
+                membership.permission("announcements.write"));
     }
 
     private void requireTrainer(AuthenticatedUser actor, UUID org, String permission) {
@@ -166,6 +188,6 @@ class AnnouncementService {
     private int pages(long t, int s) {
         return (int) Math.ceil((double) t / s);
     }
-    private record Access(boolean manager) { }
+    private record Access(boolean manager, boolean writer) { }
     record AnnouncementPage(List<Announcement> items, int page, int size, long totalElements, int totalPages) { }
 }

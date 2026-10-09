@@ -47,12 +47,12 @@ class ReportService {
             LocalDate to,
             int page,
             int size) {
-        requireSource(actor, org, type, "reports.read");
+        Membership membership = requireSource(actor, org, type, "reports.read");
         validatePeriod(from, to);
         if (page < 0 || size < 1 || size > 100) {
             throw new OrganizationRequestException("Некорректная пагинация.");
         }
-        List<Map<String, Object>> all = repository.rows(type, org, from, to, 10_000);
+        List<Map<String, Object>> all = repository.rows(type, org, from, to, 10_000, membership.scopeUser());
         int start = Math.min(page * size, all.size());
         int end = Math.min(start + size, all.size());
         List<String> columns = all.isEmpty() ? List.of() : new ArrayList<>(all.get(0).keySet());
@@ -82,7 +82,7 @@ class ReportService {
         if (!"CSV".equals(format)) {
             throw new OrganizationRequestException("Пока поддерживается только CSV.");
         }
-        List<Map<String, Object>> rows = repository.rows(type, org, from, to, 10_001);
+        List<Map<String, Object>> rows = repository.rows(type, org, from, to, 10_001, membership.scopeUser());
         if (rows.size() > 10_000) {
             throw new OrganizationRequestException("REPORT_TOO_LARGE: сузьте период или фильтры.");
         }
@@ -145,10 +145,12 @@ class ReportService {
         if (membership == null || !membership.permission(permission)) {
             throw new OrganizationPermissionException();
         }
-        return new Membership(membership.permissions());
+        // Родитель и спортсмен (без ролей тренера и ведомства) видят в отчётах только своих детей (себя)
+        boolean manager = membership.role("TRAINER") || membership.role("AGENCY");
+        return new Membership(membership.permissions(), manager ? null : actor.userId());
     }
 
-    private record Membership(String permissions) {
+    private record Membership(String permissions, UUID scopeUser) {
         boolean permission(String value) {
             return permissions.contains(value);
         }

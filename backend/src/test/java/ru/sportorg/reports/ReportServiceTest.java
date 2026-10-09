@@ -37,7 +37,7 @@ class ReportServiceTest {
 
     @Test
     void csvEscapesFormulaPrefix() {
-        when(repository.rows(ReportType.PROGRESS, organizationId, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31), 10001))
+        when(repository.rows(ReportType.PROGRESS, organizationId, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31), 10001, null))
                 .thenReturn(List.of(Map.of("comment", "=SUM(A1:A2)")));
 
         String csv = new String(service.export(actor, organizationId, ReportType.PROGRESS, "CSV",

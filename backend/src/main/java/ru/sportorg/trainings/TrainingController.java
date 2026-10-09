@@ -27,10 +27,11 @@ class TrainingController {
             @RequestParam Instant to,
             @RequestParam(required = false) UUID groupId,
             @RequestParam(required = false) UUID coachId,
+            @RequestParam(required = false) UUID athleteId,
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return service.find(actor, organizationId, q, from, to, groupId, coachId, status, page, size);
+        return service.find(actor, organizationId, q, from, to, groupId, coachId, athleteId, status, page, size);
     }
 
     @PostMapping
@@ -42,11 +43,11 @@ class TrainingController {
     }
 
     @GetMapping("/{trainingId}")
-    Training get(
+    TrainingDetail get(
             @AuthenticationPrincipal AuthenticatedUser actor,
             @PathVariable UUID organizationId,
             @PathVariable UUID trainingId) {
-        return service.get(actor, organizationId, trainingId);
+        return service.detail(actor, organizationId, trainingId);
     }
 
     @PatchMapping("/{trainingId}")

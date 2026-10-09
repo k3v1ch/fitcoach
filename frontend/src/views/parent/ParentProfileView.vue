@@ -8,11 +8,11 @@
         :show-search="false"
       >
         <template #actions>
-            <button class="icon-btn" title="Уведомления">
+            <router-link to="/parent/announcements" class="icon-btn" title="Объявления" aria-label="Объявления">
                 <BaseIcon name="bell" :size="18" color="#152421" />
-                <span class="icon-badge"></span>
-            </button>
-            <BaseButton @click="showEditModal = true">
+                <span v-if="hasUnread" class="icon-badge"></span>
+            </router-link>
+            <BaseButton disabled title="Изменение ФИО и контактов появится позже">
                 <BaseIcon name="edit" :size="16" color="#102522" />
                 Редактировать
             </BaseButton>
@@ -21,21 +21,21 @@
 
       <!-- Profile Summary Card -->
       <section class="profile-summary-card card">
-        <div class="avatar-large">АК</div>
+        <div class="avatar-large">{{ initials(displayName) }}</div>
         <div class="profile-info">
           <div class="profile-badges">
-            <span class="badge badge--dark">РОДИТЕЛЬ</span>
+            <span v-for="role in roles" :key="role" class="badge badge--dark">{{ label('role', role) }}</span>
             <span class="badge badge--green">Доступ подтверждён</span>
           </div>
-          <h2 class="profile-name">Алексей Андреевич Ковалев</h2>
+          <h2 class="profile-name">{{ displayName }}</h2>
           <div class="profile-contacts">
             <div class="contact-item">
               <BaseIcon name="mail" :size="15" color="#6D7D79" />
-              <span>alexey.kovalev@gmail.com</span>
+              <span>{{ me?.email || '—' }}</span>
             </div>
             <div class="contact-item">
-              <BaseIcon name="phone" :size="15" color="#6D7D79" />
-              <span>+7 (911) 204-75-33</span>
+              <BaseIcon name="briefcase" :size="15" color="#6D7D79" />
+              <span>{{ organizationName }}</span>
             </div>
           </div>
         </div>
@@ -45,8 +45,8 @@
             <span class="fact-value fact-value--green">Подтверждён</span>
           </div>
           <div class="fact-row">
-            <span class="fact-label">Последний вход</span>
-            <span class="fact-value">Сегодня, 09:42</span>
+            <span class="fact-label">Сеанс активен до</span>
+            <span class="fact-value">{{ sessionUntil }}</span>
           </div>
         </div>
       </section>
@@ -64,17 +64,17 @@
             <div class="info-grid">
               <div class="info-column">
                 <div class="info-field">
-                  <div class="field-icon"><BaseIcon name="phone" :size="16" color="#6D7D79" /></div>
+                  <div class="field-icon"><BaseIcon name="user" :size="16" color="#6D7D79" /></div>
                   <div class="field-copy">
-                    <span class="field-label">Телефон</span>
-                    <span class="field-value">+7 (911) 204-75-33</span>
+                    <span class="field-label">ФИО</span>
+                    <span class="field-value">{{ displayName }}</span>
                   </div>
                 </div>
                 <div class="info-field">
-                  <div class="field-icon"><BaseIcon name="send" :size="16" color="#6D7D79" /></div>
+                  <div class="field-icon"><BaseIcon name="mail" :size="16" color="#6D7D79" /></div>
                   <div class="field-copy">
-                    <span class="field-label">Предпочтительный канал</span>
-                    <span class="field-value">Telegram</span>
+                    <span class="field-label">Email</span>
+                    <span class="field-value">{{ me?.email || '—' }}</span>
                   </div>
                 </div>
               </div>
@@ -83,29 +83,31 @@
                   <div class="field-icon"><BaseIcon name="users" :size="16" color="#6D7D79" /></div>
                   <div class="field-copy">
                     <span class="field-label">Родство</span>
-                    <span class="field-value">Отец</span>
+                    <span class="field-value">{{ relationshipText }}</span>
                   </div>
                 </div>
                 <div class="info-field">
                   <div class="field-icon"><BaseIcon name="map-pin" :size="16" color="#6D7D79" /></div>
                   <div class="field-copy">
-                    <span class="field-label">Город</span>
-                    <span class="field-value">Санкт-Петербург</span>
+                    <span class="field-label">Адрес секции</span>
+                    <span class="field-value">{{ organizationAddress }}</span>
                   </div>
                 </div>
               </div>
             </div>
+            <p class="field-note">Телефон, предпочтительный канал связи, город и изменение ФИО — раздел появится позже.</p>
           </div>
 
           <!-- Linked Children Card -->
           <div class="card">
             <div class="card-header">
               <h3 class="card-title">Связанные дети</h3>
-              <p class="card-subtitle">2 ребёнка имеют доступ к секциям</p>
+              <p class="card-subtitle">{{ childrenSubtitle }}</p>
             </div>
-            <div class="children-list">
-              <div v-for="child in children" :key="child.id" class="linked-child-item">
-                <div class="child-avatar" :class="child.avatarColor">{{ child.initials }}</div>
+            <StateBlock v-if="childrenState" :kind="childrenState.kind" :message="childrenState.message" />
+            <div v-else class="children-list">
+              <div v-for="(child, i) in children" :key="child.id" class="linked-child-item">
+                <div class="child-avatar" :class="i % 2 ? 'green' : 'blue'">{{ child.initials }}</div>
                 <div class="child-details">
                   <span class="child-name">{{ child.name }}</span>
                   <span class="child-age">{{ child.age }}</span>
@@ -114,7 +116,7 @@
                   <span class="program-name">{{ child.program }}</span>
                   <span class="program-group">{{ child.group }}</span>
                 </div>
-                <BaseButton variant="outline" class="open-btn">Открыть</BaseButton>
+                <BaseButton variant="outline" class="open-btn" @click="openChild(child.id)">Открыть</BaseButton>
               </div>
             </div>
           </div>
@@ -127,10 +129,9 @@
             <div class="emergency-contact">
               <div class="emergency-icon"><BaseIcon name="siren" :size="19" color="#D64545" /></div>
               <div class="emergency-details">
-                <span class="emergency-name">Елена Викторовна Ковалева</span>
-                <span class="emergency-info">Мама · +7 (921) 630-44-08</span>
+                <span class="emergency-name">Раздел появится позже</span>
+                <span class="emergency-info">Указать экстренный контакт в кабинете пока нельзя — сообщите его тренеру.</span>
               </div>
-              <span class="tag tag--green">Основной</span>
             </div>
           </div>
         </div>
@@ -143,18 +144,7 @@
               <h3 class="card-title">Настройки уведомлений</h3>
               <p class="card-subtitle">Выберите, какие события не пропустить</p>
             </div>
-            <div class="notification-settings">
-              <div v-for="setting in notificationSettings" :key="setting.id" class="notification-setting">
-                <div class="setting-copy">
-                  <span class="setting-title">{{ setting.title }}</span>
-                  <span class="setting-description">{{ setting.description }}</span>
-                </div>
-                <label class="toggle-switch">
-                  <input type="checkbox" v-model="setting.enabled">
-                  <span class="slider"></span>
-                </label>
-              </div>
-            </div>
+            <p class="soon-text">Раздел появится позже — выбрать, какие уведомления получать, пока нельзя. Уведомления приходят в колокольчик в шапке страницы.</p>
           </div>
 
           <!-- Family Access Status Card -->
@@ -164,10 +154,10 @@
             </div>
             <div class="status-copy">
               <span class="status-label">Семейный доступ</span>
-              <span class="status-value">2 профиля ребёнка</span>
-              <span class="status-description">Арина · Плавание, Максим · ОФП</span>
+              <span class="status-value">{{ familyValue }}</span>
+              <span class="status-description">{{ familyDescription }}</span>
             </div>
-            <a href="#" class="status-action">Управлять →</a>
+            <router-link to="/parent/dashboard" class="status-action">Обзор →</router-link>
           </div>
 
           <!-- Security Card -->
@@ -176,21 +166,20 @@
               <h3 class="card-title">Безопасность и доступ</h3>
             </div>
             <div class="security-actions">
-              <div class="security-action-item">
+              <div class="security-action-item" role="button" tabindex="0" @click="openPassword" @keydown.enter="openPassword">
                 <BaseIcon name="key" :size="17" color="#152421" />
                 <div class="action-copy">
                   <span class="action-title">Изменить пароль</span>
-                  <span class="action-description">Обновлён 3 месяца назад</span>
+                  <span class="action-description">После смены нужно войти заново</span>
                 </div>
                 <BaseIcon name="chevron-right" :size="15" color="#98A6A2" />
               </div>
-              <div class="security-action-item">
-                <BaseIcon name="shield-check" :size="17" color="#152421" />
+              <div class="security-action-item security-action-item--disabled" aria-disabled="true">
+                <BaseIcon name="shield-check" :size="17" color="#98A6A2" />
                 <div class="action-copy">
                   <span class="action-title">Двухфакторная защита</span>
-                  <span class="action-description">Подключена по SMS</span>
+                  <span class="action-description">Раздел появится позже</span>
                 </div>
-                <BaseIcon name="chevron-right" :size="15" color="#98A6A2" />
               </div>
               <div class="security-action-item security-action-item--danger" role="button" tabindex="0" @click="handleLogout" @keydown.enter="handleLogout">
                 <BaseIcon name="log-out" :size="17" color="#D64545" />
@@ -205,62 +194,258 @@
         </div>
       </div>
 
-      <!-- Edit Modal -->
-      <BaseModal v-model="showEditModal" title="Редактировать профиль" @submit="handleSaveProfile">
-        <BaseInput v-model="editForm.fullName" label="ФИО" placeholder="Алексей Андреевич Ковалев" />
-        <BaseInput v-model="editForm.phone" label="Телефон" placeholder="+7 (911) 204-75-33" />
-        <BaseInput v-model="editForm.channel" label="Предпочтительный канал" placeholder="Telegram" />
-        <BaseInput v-model="editForm.relationship" label="Родство" placeholder="Отец" />
-        <BaseInput v-model="editForm.city" label="Город" placeholder="Санкт-Петербург" />
+      <!-- Смена пароля (PUT /auth/password) -->
+      <BaseModal
+        v-model="showPasswordModal"
+        title="Изменить пароль"
+        :submit-label="changingPassword ? 'Сохранение…' : 'Изменить пароль'"
+        @submit="handleChangePassword"
+      >
+        <BaseInput id="pwd-current" v-model="passwordForm.current" type="password" label="Текущий пароль" />
+        <BaseInput id="pwd-new" v-model="passwordForm.next" type="password" label="Новый пароль" placeholder="От 15 до 128 символов" />
+        <BaseInput id="pwd-repeat" v-model="passwordForm.repeat" type="password" label="Повторите новый пароль" />
+        <p class="form-hint">После смены пароля все сеансы завершатся — войдите снова с новым паролем.</p>
+        <p v-if="passwordError" class="form-error" role="alert">{{ passwordError }}</p>
       </BaseModal>
     </main>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { logout } from '../../utils/session'
+import {
+  logout, clearSession, currentUser, currentOrganization, myAthletes, loadMyAthletes, selectAthlete, getOrganizationId
+} from '../../utils/session'
 import ParentSidebar from '../../components/layout/ParentSidebar.vue'
 import PageHeader from '../../components/layout/PageHeader.vue'
 import BaseButton from '../../components/ui/BaseButton.vue'
 import BaseIcon from '../../components/ui/BaseIcon.vue'
 import BaseModal from '../../components/ui/BaseModal.vue'
 import BaseInput from '../../components/ui/BaseInput.vue'
+import StateBlock from '../../components/ui/StateBlock.vue'
+import { authApi } from '../../api/auth'
+import { organizationsApi } from '../../api/organizations'
+import { groupsApi } from '../../api/groups'
+import { sectionsApi } from '../../api/sections'
+import { announcementsApi } from '../../api/announcements'
+import {
+  errorText, formatTime, formatDateTime, toIsoDate, parseDate, fullName, initials, ageYears
+} from '../../utils/format'
+import { label } from '../../utils/labels'
 
-const showEditModal = ref(false)
-
-const editForm = reactive({
-  fullName: 'Алексей Андреевич Ковалев',
-  phone: '+7 (911) 204-75-33',
-  channel: 'Telegram',
-  relationship: 'Отец',
-  city: 'Санкт-Петербург'
-})
-
-const handleSaveProfile = () => {
-  alert('Профиль сохранён (демо)')
-  showEditModal.value = false
+function plural(n, one, few, many) {
+  const m10 = n % 10
+  const m100 = n % 100
+  if (m10 === 1 && m100 !== 11) return one
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few
+  return many
 }
 
-const children = ref([])
-const notificationSettings = ref([])
+const unique = list => [...new Set(list.filter(Boolean))]
 
-onMounted(() => {
-  children.value = [
-    { id: 1, name: 'Арина Ковалева', age: '12 лет · дочь', initials: 'АК', avatarColor: 'blue', program: 'Плавание', group: 'Группа A1 · старшие' },
-    { id: 2, name: 'Максим Ковалев', age: '9 лет · сын', initials: 'МК', avatarColor: 'green', program: 'ОФП', group: 'Группа B2 · начальная' },
-  ]
+// Все страницы списка Page<T> (size не больше 100)
+async function fetchAll(request, maxPages = 10) {
+  const items = []
+  for (let page = 0; page < maxPages; page++) {
+    const res = await request({ page, size: 100 })
+    items.push(...(res?.items || []))
+    if (page + 1 >= (res?.totalPages || 0)) break
+  }
+  return items
+}
 
-  notificationSettings.value = [
-    { id: 'schedule', title: 'Изменения расписания', description: 'По занятиям обоих детей', enabled: true },
-    { id: 'announcements', title: 'Объявления секций', description: 'Важные сообщения и сборы', enabled: true },
-    { id: 'payments', title: 'Оплаты и начисления', description: 'Квитанции и напоминания', enabled: true },
-    { id: 'reports', title: 'Отчёты о прогрессе', description: 'Еженедельная сводка', enabled: false },
-  ]
+// ─────────── Аккаунт (GET /me) ───────────
+const me = ref(currentUser.value)
+
+async function loadMe() {
+  try {
+    me.value = await authApi.me()
+  } catch (_) {
+    // остаются данные сессии; 401 обработает общий обработчик входа
+  }
+}
+
+const displayName = computed(() => me.value?.fullName?.trim() || me.value?.email || '—')
+const roles = computed(() => currentOrganization.value?.roles || [])
+
+const sessionUntil = computed(() => {
+  const until = parseDate(me.value?.expiresAt)
+  if (!until || isNaN(until)) return '—'
+  return toIsoDate(until) === toIsoDate(new Date()) ? `Сегодня, ${formatTime(until)}` : formatDateTime(until)
+})
+
+// ─────────── Организация (GET /organizations/{id}) ───────────
+const organization = ref(null)
+const orgLoading = ref(true)
+
+async function loadOrganization() {
+  orgLoading.value = true
+  try {
+    organization.value = await organizationsApi.get(getOrganizationId())
+  } catch (_) {
+    organization.value = null
+  } finally {
+    orgLoading.value = false
+  }
+}
+
+const organizationName = computed(() => organization.value?.name || currentOrganization.value?.organizationName || '—')
+const organizationAddress = computed(() => {
+  if (orgLoading.value) return '…'
+  if (!organization.value) return '—'
+  return organization.value.address || 'Не указан'
+})
+
+// ─────────── Дети: свои карточки (parentLinks) и их текущие группы ───────────
+const childrenReady = ref(false)
+const childrenError = ref(null)
+const groupsByChild = ref(new Map()) // athleteId → Group[]
+const groupsLoaded = ref(false)
+const sections = ref([])
+
+// Родство из связи родителя с карточкой ребёнка (задаёт тренер)
+function relationshipOf(athlete) {
+  const userId = me.value?.userId || currentUser.value?.userId
+  return (athlete.parents || []).find(p => p.parentUserId === userId)?.relationship?.trim() || ''
+}
+
+async function loadChildGroups() {
+  const org = getOrganizationId()
+  const [groupLists, sectionList] = await Promise.all([
+    Promise.allSettled(myAthletes.value.map(a =>
+      fetchAll(p => groupsApi.list(org, { athleteId: a.id, status: 'ACTIVE', ...p })))),
+    fetchAll(p => sectionsApi.list(org, p)).catch(() => [])
+  ])
+  const map = new Map()
+  myAthletes.value.forEach((a, i) => {
+    if (groupLists[i]?.status === 'fulfilled') map.set(a.id, groupLists[i].value)
+  })
+  groupsByChild.value = map
+  sections.value = sectionList
+  groupsLoaded.value = true
+}
+
+const sectionById = computed(() => new Map(sections.value.map(s => [s.id, s])))
+
+const children = computed(() => myAthletes.value.map(a => {
+  const age = ageYears(a.birthDate)
+  const groups = groupsByChild.value.get(a.id)
+  const program = groups ? unique(groups.map(g => sectionById.value.get(g.sectionId)?.name)).join(', ') : ''
+  const groupNames = groups ? groups.map(g => g.name).join(', ') : ''
+  return {
+    id: a.id,
+    name: fullName(a),
+    firstName: a.firstName || fullName(a),
+    sectionsText: program,
+    initials: initials(fullName(a)),
+    age: [age === null || isNaN(age) ? '' : `${age} ${plural(age, 'год', 'года', 'лет')}`, relationshipOf(a)]
+      .filter(Boolean).join(' · ') || '—',
+    program: !groupsLoaded.value ? '…' : groups ? program || 'Секция не указана' : 'Группы не загрузились',
+    group: !groupsLoaded.value ? '' : groups ? groupNames || 'Нет текущих групп' : ''
+  }
+}))
+
+const childrenState = computed(() => {
+  if (!childrenReady.value) return { kind: 'loading', message: '' }
+  if (childrenError.value) return { kind: 'error', message: errorText(childrenError.value) }
+  if (!myAthletes.value.length) return { kind: 'empty', message: 'Ребёнок ещё не привязан — обратитесь к тренеру' }
+  return null
+})
+
+const childrenSubtitle = computed(() => {
+  const n = myAthletes.value.length
+  if (!childrenReady.value) return 'Загрузка…'
+  return n
+    ? `${n} ${plural(n, 'ребёнок привязан', 'ребёнка привязаны', 'детей привязаны')} к вашему аккаунту`
+    : 'Связь с ребёнком добавляет тренер'
+})
+
+const relationshipText = computed(() => unique(myAthletes.value.map(relationshipOf)).join(', ') || 'Не указано')
+
+const familyValue = computed(() => {
+  const n = myAthletes.value.length
+  return n ? `${n} ${plural(n, 'профиль ребёнка', 'профиля детей', 'профилей детей')}` : 'Нет привязанных детей'
+})
+
+// «Имя · секция, Имя · секция» — по каждому ребёнку
+const familyDescription = computed(() => {
+  if (!myAthletes.value.length) return 'Связь с ребёнком добавляет тренер'
+  return children.value.map(c => [c.firstName, c.sectionsText].filter(Boolean).join(' · ')).join(', ')
 })
 
 const logoutRouter = useRouter()
+
+function openChild(id) {
+  selectAthlete(id)
+  logoutRouter.push('/parent/dashboard')
+}
+
+// ─────────── Отметка у колокольчика: непрочитанные объявления ───────────
+const hasUnread = ref(false)
+
+async function loadUnread() {
+  try {
+    const res = await announcementsApi.list(getOrganizationId(), { status: 'PUBLISHED', unread: true, size: 1 })
+    hasUnread.value = (res?.totalElements || 0) > 0
+  } catch (_) {
+    hasUnread.value = false // отметка в шапке не критична
+  }
+}
+
+// ─────────── Смена пароля (PUT /auth/password) ───────────
+const showPasswordModal = ref(false)
+const changingPassword = ref(false)
+const passwordError = ref('')
+const passwordForm = reactive({ current: '', next: '', repeat: '' })
+
+function openPassword() {
+  Object.assign(passwordForm, { current: '', next: '', repeat: '' })
+  passwordError.value = ''
+  showPasswordModal.value = true
+}
+
+async function handleChangePassword() {
+  if (changingPassword.value) return
+  if (!passwordForm.current) { passwordError.value = 'Введите текущий пароль.'; return }
+  if (passwordForm.next.length < 15 || passwordForm.next.length > 128) {
+    passwordError.value = 'Новый пароль должен содержать от 15 до 128 символов.'
+    return
+  }
+  if (passwordForm.next !== passwordForm.repeat) { passwordError.value = 'Пароли не совпадают.'; return }
+  if (passwordForm.next === passwordForm.current) { passwordError.value = 'Новый пароль совпадает с текущим.'; return }
+  changingPassword.value = true
+  passwordError.value = ''
+  try {
+    await authApi.changePassword(passwordForm.current, passwordForm.next)
+    // Сервер завершил все сеансы, включая этот, — на вход с сообщением «Пароль изменён»
+    showPasswordModal.value = false
+    clearSession()
+    logoutRouter.push({ path: '/', query: { reset: '1' } })
+  } catch (e) {
+    if (e?.code === 'INVALID_CREDENTIALS') passwordError.value = 'Текущий пароль указан неверно.'
+    else if (e?.fieldErrors?.some(f => f.field === 'newPassword')) passwordError.value = 'Новый пароль должен содержать от 15 до 128 символов.'
+    else passwordError.value = errorText(e)
+  } finally {
+    changingPassword.value = false
+  }
+}
+
+onMounted(async () => {
+  loadMe()
+  loadOrganization()
+  loadUnread()
+  try {
+    if (!myAthletes.value.length) await loadMyAthletes()
+  } catch (e) {
+    childrenError.value = e
+  } finally {
+    childrenReady.value = true
+  }
+  if (!childrenError.value && myAthletes.value.length) {
+    loadChildGroups().catch(() => { groupsLoaded.value = true })
+  }
+})
 
 async function handleLogout() {
   await logout()
@@ -281,7 +466,7 @@ async function handleLogout() {
 .badge--dark { background: #102522; color: #B7F34B; }
 .badge--green { background: #E9F7D5; color: #2E8B57; }
 .profile-name { font-size: 24px; font-weight: 700; color: #152421; }
-.profile-contacts { display: flex; gap: 20px; align-items: center; }
+.profile-contacts { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
 .contact-item { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #6D7D79; }
 .profile-facts { width: 230px; display: flex; flex-direction: column; gap: 10px; }
 .fact-row { display: flex; justify-content: space-between; align-items: center; }
@@ -299,9 +484,10 @@ async function handleLogout() {
 .info-field { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #E3EAE8; }
 .info-field:last-child { border-bottom: none; }
 .field-icon { width: 34px; height: 34px; background: #F0F4F4; border-radius: 8px; display: flex; justify-content: center; align-items: center; flex-shrink: 0; }
-.field-copy { display: flex; flex-direction: column; gap: 3px; }
+.field-copy { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .field-label { font-size: 10px; font-weight: 700; color: #98A6A2; text-transform: uppercase; }
-.field-value { font-size: 14px; font-weight: 600; color: #152421; }
+.field-value { font-size: 14px; font-weight: 600; color: #152421; overflow-wrap: anywhere; }
+.field-note { font-size: 12px; color: #98A6A2; }
 .children-list { display: flex; flex-direction: column; gap: 10px; }
 .linked-child-item { display: flex; align-items: center; gap: 12px; padding: 14px; background: #F0F4F4; border-radius: 12px; }
 .child-avatar { width: 44px; height: 44px; border-radius: 999px; display: flex; justify-content: center; align-items: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
@@ -319,34 +505,25 @@ async function handleLogout() {
 .emergency-details { flex: 1; display: flex; flex-direction: column; gap: 3px; }
 .emergency-name { font-size: 14px; font-weight: 700; color: #152421; }
 .emergency-info { font-size: 11px; color: #6D7D79; }
-.tag { padding: 5px 9px; border-radius: 999px; font-size: 10px; font-weight: 700; }
-.tag--green { background: #E9F7D5; color: #2E8B57; }
-.notification-settings { display: flex; flex-direction: column; gap: 16px; }
-.notification-setting { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-.setting-copy { display: flex; flex-direction: column; gap: 3px; }
-.setting-title { font-size: 13px; font-weight: 600; color: #152421; }
-.setting-description { font-size: 11px; color: #6D7D79; }
-.toggle-switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
-.toggle-switch input { opacity: 0; width: 0; height: 0; }
-.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #E3EAE8; transition: .4s; border-radius: 24px; }
-.slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
-input:checked + .slider { background-color: #B7F34B; }
-input:checked + .slider:before { transform: translateX(20px); background-color: #102522; }
+.soon-text { font-size: 13px; color: #6D7D79; line-height: 1.5; }
 .status-card { background: #102522; padding: 18px; border-radius: 16px; display: flex; align-items: center; gap: 14px; }
 .status-icon { width: 42px; height: 42px; background: #19332F; border-radius: 12px; display: flex; justify-content: center; align-items: center; flex-shrink: 0; }
 .status-copy { flex: 1; display: flex; flex-direction: column; gap: 3px; }
 .status-label { font-size: 10px; font-weight: 700; color: #98A6A2; text-transform: uppercase; }
 .status-value { font-size: 16px; font-weight: 700; color: white; }
 .status-description { font-size: 10px; color: #98A6A2; }
-.status-action { font-size: 11px; font-weight: 700; color: #B7F34B; text-decoration: none; }
+.status-action { font-size: 11px; font-weight: 700; color: #B7F34B; text-decoration: none; white-space: nowrap; }
 .security-actions { display: flex; flex-direction: column; gap: 8px; }
 .security-action-item { display: flex; align-items: center; gap: 10px; padding: 12px; background: #F0F4F4; border-radius: 12px; cursor: pointer; transition: background 0.2s; }
 .security-action-item:hover { background: #E9F0EE; }
+.security-action-item--disabled { cursor: default; opacity: 0.7; }
+.security-action-item--disabled:hover { background: #F0F4F4; }
 .action-copy { flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .action-title { font-size: 13px; font-weight: 600; color: #152421; }
 .action-description { font-size: 10px; color: #6D7D79; }
 .security-action-item--danger .action-title { color: #D64545; }
-.icon-btn { position: relative; width: 44px; height: 44px; background: white; border: 1px solid #E3EAE8; border-radius: 12px; display: flex; justify-content: center; align-items: center; cursor: pointer; }
+.form-hint { font-size: 13px; color: #6D7D79; line-height: 1.4; }
+.form-error { font-size: 13px; color: #D64545; }
 .icon-btn {
   position: relative;
   width: 44px;

@@ -50,8 +50,8 @@ class TrainingServiceTest {
 
         assertThrows(OrganizationPermissionException.class,
                 () -> service.find(actor, organizationId, null, Instant.parse("2026-10-01T00:00:00Z"),
-                        Instant.parse("2026-10-02T00:00:00Z"), null, null, null, 0, 20));
-        verify(repository, never()).count(any(), any(), any(), any(), any(), any(), any());
+                        Instant.parse("2026-10-02T00:00:00Z"), null, null, null, null, 0, 20));
+        verify(repository, never()).count(any(), any(), any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test

@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.sportorg.auth.AuthenticatedUser;
+import ru.sportorg.organizations.OrganizationConflictException;
 import ru.sportorg.organizations.OrganizationNotFoundException;
 import ru.sportorg.organizations.OrganizationPermissionException;
 import ru.sportorg.organizations.OrganizationRequestException;
@@ -102,6 +103,117 @@ class FinanceService {
                 (int) Math.ceil((double) total / size));
     }
 
+    ChargePage charges(
+            AuthenticatedUser actor,
+            UUID org,
+            String q,
+            UUID athleteId,
+            UUID sectionId,
+            String type,
+            UUID eventId,
+            String paymentStatus,
+            Boolean overdue,
+            String status,
+            LocalDate dueFrom,
+            LocalDate dueTo,
+            int page,
+            int size) {
+        Access access = require(actor, org, "charges.read");
+        if (page < 0 || size < 1 || size > 100) {
+            throw new OrganizationRequestException("page должен быть неотрицательным, size должен быть от 1 до 100.");
+        }
+        if (type != null && !ListValues.TYPES.contains(type)) {
+            throw new OrganizationRequestException("Недопустимый тип начисления.");
+        }
+        if (paymentStatus != null && !ListValues.PAYMENT_STATES.contains(paymentStatus)) {
+            throw new OrganizationRequestException("Недопустимый статус оплаты.");
+        }
+        if (status != null && !ListValues.CHARGE_STATUSES.contains(status)) {
+            throw new OrganizationRequestException("Недопустимый статус начисления.");
+        }
+        if (dueFrom != null && dueTo != null && dueFrom.isAfter(dueTo)) {
+            throw new OrganizationRequestException("dueFrom не может быть позже dueTo.");
+        }
+        String query = q == null || q.isBlank() ? null : q.trim();
+        UUID scopeUserId = access.self ? actor.userId() : null;
+        long total = repository.countCharges(org, query, athleteId, sectionId, type, eventId, paymentStatus, overdue, status, dueFrom, dueTo, scopeUserId);
+        return new ChargePage(
+                repository.charges(org, query, athleteId, sectionId, type, eventId, paymentStatus, overdue, status, dueFrom, dueTo, scopeUserId, size, page * size),
+                page,
+                size,
+                total,
+                (int) Math.ceil((double) total / size));
+    }
+
+    @Transactional
+    Charge updateCharge(AuthenticatedUser actor, UUID org, UUID chargeId, ChargePatch patch) {
+        requireTrainer(actor, org, "charges.write");
+        if (patch == null || patch.isEmpty()) {
+            throw new OrganizationRequestException("Передайте хотя бы одно поле.");
+        }
+        Charge charge = repository.lockCharge(org, chargeId).orElseThrow(OrganizationNotFoundException::new);
+        if (!"ACTIVE".equals(charge.status())) {
+            throw new OrganizationConflictException("Отменённое начисление не редактируется.");
+        }
+        if (patch.has("status")) {
+            if (!"CANCELLED".equals(patch.status())) {
+                throw new OrganizationRequestException("status можно передать только со значением CANCELLED.");
+            }
+            if (blank(patch.cancelReason())) {
+                throw new OrganizationRequestException("Для отмены укажите причину.");
+            }
+            if (patch.has("title") || patch.has("amount") || patch.has("dueOn") || patch.has("comment")) {
+                throw new OrganizationRequestException("Отмена не совмещается с изменением полей начисления.");
+            }
+            if (charge.paidAmount().signum() > 0) {
+                throw new OrganizationConflictException("По начислению есть проведённые платежи: сначала аннулируйте их.");
+            }
+            String reason = patch.cancelReason().trim();
+            repository.cancelCharge(org, chargeId, reason, actor.userId());
+            repository.recordActivity(org, actor.userId(), "CHARGE_CANCELLED", "CHARGE", chargeId,
+                    "Отменено начисление «" + charge.title() + "»: " + reason);
+        } else {
+            if (patch.has("cancelReason")) {
+                throw new OrganizationRequestException("cancelReason передаётся только вместе со status = CANCELLED.");
+            }
+            if (patch.has("title") && blank(patch.title())) {
+                throw new OrganizationRequestException("Название начисления не может быть пустым.");
+            }
+            if (patch.has("amount") && (patch.amount() == null
+                    || patch.amount().signum() <= 0
+                    || patch.amount().stripTrailingZeros().scale() > 2
+                    || patch.amount().compareTo(charge.paidAmount()) < 0)) {
+                throw new OrganizationRequestException("Сумма должна быть больше нуля, с точностью до копеек и не меньше уже оплаченного.");
+            }
+            if (patch.has("dueOn") && patch.dueOn() == null) {
+                throw new OrganizationRequestException("Срок оплаты не может быть пустым.");
+            }
+            repository.updateCharge(org, chargeId, patch, actor.userId());
+            repository.recordActivity(org, actor.userId(), "CHARGE_UPDATED", "CHARGE", chargeId,
+                    "Изменено начисление «" + charge.title() + "»");
+        }
+        return repository.charge(org, chargeId).orElseThrow(OrganizationNotFoundException::new);
+    }
+
+    @Transactional
+    PaymentResult voidPayment(AuthenticatedUser actor, UUID org, UUID paymentId, PaymentVoid request) {
+        requireTrainer(actor, org, "payments.write");
+        if (request == null || blank(request.reason())) {
+            throw new OrganizationRequestException("Укажите причину аннулирования.");
+        }
+        Payment payment = repository.lockPayment(org, paymentId).orElseThrow(OrganizationNotFoundException::new);
+        if (!"ACTIVE".equals(payment.status())) {
+            throw new OrganizationConflictException("Платёж уже аннулирован.");
+        }
+        String reason = request.reason().trim();
+        repository.voidPayment(org, paymentId, reason, actor.userId());
+        repository.recordActivity(org, actor.userId(), "PAYMENT_VOIDED", "PAYMENT", paymentId,
+                "Аннулирован платёж " + payment.amount().toPlainString() + " ₽: " + reason);
+        return new PaymentResult(
+                repository.payment(org, paymentId).orElseThrow(OrganizationNotFoundException::new),
+                repository.charge(org, payment.chargeId()).orElseThrow(OrganizationNotFoundException::new));
+    }
+
     FinanceSummary summary(AuthenticatedUser actor, UUID org, LocalDate from, LocalDate to) {
         require(actor, org, "finance.read");
         if (from == null || to == null || from.isAfter(to)) {
@@ -137,5 +249,5 @@ class FinanceService {
         return value == null || value.isBlank();
     }
     private record Access(boolean self) { }
-    private static final class ListValues { static final java.util.List<String> TYPES = java.util.List.of("SUBSCRIPTION", "TRAINING", "EVENT"); static final java.util.List<String> METHODS = java.util.List.of("SBP", "TRANSFER", "CASH", "OTHER"); static final java.util.List<String> PAYMENT_STATUSES = java.util.List.of("ACTIVE", "VOIDED"); }
+    private static final class ListValues { static final java.util.List<String> TYPES = java.util.List.of("SUBSCRIPTION", "TRAINING", "EVENT"); static final java.util.List<String> METHODS = java.util.List.of("SBP", "TRANSFER", "CASH", "OTHER"); static final java.util.List<String> PAYMENT_STATUSES = java.util.List.of("ACTIVE", "VOIDED"); static final java.util.List<String> PAYMENT_STATES = java.util.List.of("UNPAID", "PARTIALLY_PAID", "PAID"); static final java.util.List<String> CHARGE_STATUSES = java.util.List.of("ACTIVE", "CANCELLED"); }
 }

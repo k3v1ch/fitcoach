@@ -1,13 +1,24 @@
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { authApi } from '../api/auth'
 import { organizationsApi } from '../api/organizations'
+import { athletesApi } from '../api/athletes'
 import { resetCsrf } from '../api/index'
 
 const ORGANIZATION_KEY = 'fitcoach.organizationId'
+const ATHLETE_KEY = 'fitcoach.athleteId'
 
 export const currentUser = ref(null)
 export const organizations = ref([])
 export const currentOrganization = ref(null)
+
+// Кабинеты родителя и спортсмена: свои карточки спортсменов и выбранный ребёнок
+export const myAthletes = ref([])
+export const selectedAthleteId = ref(readKey(ATHLETE_KEY))
+export const selectedAthlete = computed(() => myAthletes.value.find(a => a.id === selectedAthleteId.value) || null)
+
+function readKey(key) {
+  try { return localStorage.getItem(key) } catch (_) { return null }
+}
 
 function readSavedOrganizationId() {
   try { return localStorage.getItem(ORGANIZATION_KEY) } catch (_) { return null }
@@ -47,7 +58,42 @@ export function clearSession() {
   currentUser.value = null
   organizations.value = []
   currentOrganization.value = null
+  myAthletes.value = []
+  selectAthlete(null)
   resetCsrf()
+}
+
+// Свои карточки: дети родителя (по parentLinks) и карточка спортсмена (по userId).
+// Сервер уже ограничивает список для родителя и спортсмена; фильтр нужен, если у пользователя есть и роль тренера.
+export async function loadMyAthletes() {
+  const page = await athletesApi.list(getOrganizationId(), { size: 100 })
+  const userId = currentUser.value?.userId
+  myAthletes.value = (page.items || []).filter(a =>
+    a.userId === userId || (a.parents || []).some(p => p.parentUserId === userId))
+  if (!myAthletes.value.some(a => a.id === selectedAthleteId.value)) {
+    selectAthlete(myAthletes.value[0]?.id || null)
+  }
+  return myAthletes.value
+}
+
+export function selectAthlete(id) {
+  selectedAthleteId.value = id
+  try {
+    if (id) localStorage.setItem(ATHLETE_KEY, id)
+    else localStorage.removeItem(ATHLETE_KEY)
+  } catch (_) { /* приватный режим браузера */ }
+}
+
+// Переключение организации: роли, права и все данные экранов другие — поэтому стартовая страница
+// новой роли открывается с полной перезагрузкой
+export function switchOrganization(id) {
+  const org = organizations.value.find(o => o.organizationId === id)
+  if (!org || org.organizationId === currentOrganization.value?.organizationId) return
+  saveOrganizationId(org.organizationId)
+  currentOrganization.value = org
+  myAthletes.value = []
+  selectAthlete(null)
+  window.location.assign(homePath())
 }
 
 export async function logout() {

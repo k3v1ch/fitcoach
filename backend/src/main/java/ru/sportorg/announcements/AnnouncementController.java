@@ -63,6 +63,26 @@ class AnnouncementController {
         service.read(actor, organizationId, announcementId);
     }
 
+    @GetMapping("/{announcementId}/recipients")
+    AnnouncementAudiencePages.RecipientPage recipients(
+            @AuthenticationPrincipal AuthenticatedUser actor,
+            @PathVariable UUID organizationId,
+            @PathVariable UUID announcementId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return service.recipients(actor, organizationId, announcementId, page, size);
+    }
+
+    @GetMapping("/{announcementId}/responses")
+    AnnouncementAudiencePages.ResponsePage responses(
+            @AuthenticationPrincipal AuthenticatedUser actor,
+            @PathVariable UUID organizationId,
+            @PathVariable UUID announcementId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return service.responses(actor, organizationId, announcementId, page, size);
+    }
+
     @PostMapping("/{announcementId}/responses")
     void respond(
             @AuthenticationPrincipal AuthenticatedUser actor,

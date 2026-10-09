@@ -36,6 +36,17 @@ class AthleteService {
         return new AthletePage(items, page, size, total, (int) Math.ceil((double) total / size));
     }
 
+    // Родители организации с детьми (6.6, №017): нужен доступ ко всему списку спортсменов — не для родителя и спортсмена
+    ParentPage parents(AuthenticatedUser actor, UUID organizationId, String q, UUID athleteId, int page, int size) {
+        Access access = requireAccess(actor, organizationId, "athletes.read");
+        if (access.selfScope()) throw new OrganizationPermissionException();
+        validatePage(page, size);
+        String normalized = q == null || q.isBlank() ? null : q.trim().toLowerCase(Locale.ROOT);
+        long total = repository.countParents(organizationId, normalized, athleteId);
+        return new ParentPage(repository.parents(organizationId, normalized, athleteId, size, page * size),
+                page, size, total, (int) Math.ceil((double) total / size));
+    }
+
     Athlete get(AuthenticatedUser actor, UUID organizationId, UUID athleteId) {
         Access access = requireAccess(actor, organizationId, "athletes.read");
         Athlete athlete = find(organizationId, athleteId);

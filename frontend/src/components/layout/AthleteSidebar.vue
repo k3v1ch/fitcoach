@@ -29,19 +29,29 @@
       </router-link>
     </nav>
 
+    <OrganizationSwitcher />
+
     <!-- 👇 ПРОФИЛЬ СПОРТСМЕНА — ссылка -->
     <router-link to="/athlete/profile" class="profile" active-class="profile--active">
-      <div class="avatar">ИП</div>
+      <div class="avatar">{{ userInitials }}</div>
       <div class="profile-info">
-        <div class="profile-name">Иван Петров</div>
-        <div class="profile-role">Спортсмен · Бокс</div>
+        <div class="profile-name">{{ userName }}</div>
+        <div class="profile-role">{{ userRole }}</div>
       </div>
     </router-link>
   </aside>
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import BaseIcon from '../ui/BaseIcon.vue'
+import OrganizationSwitcher from './OrganizationSwitcher.vue'
+import { currentUser, currentOrganization } from '../../utils/session'
+import { initials } from '../../utils/format'
+
+const userName = computed(() => currentUser.value?.fullName?.trim() || currentUser.value?.email || '—')
+const userInitials = computed(() => initials(userName.value))
+const userRole = computed(() => ['Спортсмен', currentOrganization.value?.organizationName].filter(Boolean).join(' · '))
 </script>
 
 <style scoped>

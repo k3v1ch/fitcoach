@@ -173,12 +173,23 @@ class OrganizationRepository {
 
     Optional<OrganizationMember> addParentMembership(UUID organizationId, String normalizedEmail,
                                                      List<String> permissions, Instant updatedAt) {
+        return addSelfServiceMembership(organizationId, normalizedEmail, "PARENT", permissions, updatedAt);
+    }
+
+    Optional<OrganizationMember> addAthleteMembership(UUID organizationId, String normalizedEmail,
+                                                      List<String> permissions, Instant updatedAt) {
+        return addSelfServiceMembership(organizationId, normalizedEmail, "ATHLETE", permissions, updatedAt);
+    }
+
+    /** Членство по email подтверждённого аккаунта: роль добавляется к уже имеющимся, AGENCY не меняется. */
+    private Optional<OrganizationMember> addSelfServiceMembership(UUID organizationId, String normalizedEmail, String role,
+                                                                  List<String> permissions, Instant updatedAt) {
         String permissionsJson = writeStringList(permissions);
         return jdbcClient.sql("""
                         WITH upserted AS (
                             INSERT INTO membership (user_id, organization_id, roles, permissions, status,
                                                     created_at, updated_at)
-                            SELECT u.id, :organizationId, '["PARENT"]'::jsonb, CAST(:permissions AS jsonb),
+                            SELECT u.id, :organizationId, jsonb_build_array(CAST(:role AS text)), CAST(:permissions AS jsonb),
                                    'ACTIVE', :updatedAt, :updatedAt
                             FROM app_user u
                             WHERE u.normalized_email = :normalizedEmail
@@ -204,6 +215,7 @@ class OrganizationRepository {
                         """)
                 .param("organizationId", organizationId)
                 .param("normalizedEmail", normalizedEmail)
+                .param("role", role)
                 .param("permissions", permissionsJson)
                 .param("updatedAt", JdbcTime.toOffsetDateTime(updatedAt))
                 .query((resultSet, rowNumber) -> new OrganizationMember(

@@ -1,10 +1,12 @@
 package ru.sportorg.organizations;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.time.DateTimeException;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -89,19 +91,33 @@ class OrganizationService {
 
     @Transactional
     OrganizationMember addParent(AuthenticatedUser actor, UUID organizationId, ParentMembershipWrite write) {
+        return grantSelfService(actor, organizationId, write.email(), "родителя", repository::addParentMembership);
+    }
+
+    @Transactional
+    OrganizationMember addAthlete(AuthenticatedUser actor, UUID organizationId, AthleteMembershipWrite write) {
+        return grantSelfService(actor, organizationId, write.email(), "спортсмена", repository::addAthleteMembership);
+    }
+
+    private OrganizationMember grantSelfService(AuthenticatedUser actor, UUID organizationId, String email,
+                                                String whose, SelfServiceGrant grant) {
         findOrganization(organizationId);
         OrganizationRepository.MembershipAccess access = requireMembership(actor, organizationId);
         if (!access.roles().contains("TRAINER") || !access.permissions().contains("members.write")) {
             throw new OrganizationPermissionException();
         }
-        if (write.email() == null || write.email().isBlank() || write.email().trim().length() > 320) {
-            throw new OrganizationRequestException("Укажите корректный email родителя.");
+        if (email == null || email.isBlank() || email.trim().length() > 320) {
+            throw new OrganizationRequestException("Укажите корректный email " + whose + ".");
         }
-        String normalizedEmail = write.email().trim().toLowerCase(Locale.ROOT);
-        return repository.addParentMembership(organizationId, normalizedEmail,
-                        MembershipPolicy.selfServicePermissions(), clock.instant())
+        String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
+        return grant.apply(organizationId, normalizedEmail, MembershipPolicy.selfServicePermissions(), clock.instant())
                 .orElseThrow(() -> new OrganizationRequestException(
                         "Аккаунт не найден или не активирован, либо членство нельзя изменить."));
+    }
+
+    private interface SelfServiceGrant {
+        Optional<OrganizationMember> apply(UUID organizationId, String normalizedEmail, List<String> permissions,
+                                           Instant updatedAt);
     }
 
     private void validatePatch(OrganizationPatch patch) {

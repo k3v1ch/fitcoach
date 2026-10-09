@@ -54,4 +54,11 @@ class OrganizationController {
                                  @Valid @RequestBody ParentMembershipWrite write) {
         return organizationService.addParent(actor, organizationId, write);
     }
+
+    @PostMapping("/members/athletes")
+    OrganizationMember addAthlete(@AuthenticationPrincipal AuthenticatedUser actor,
+                                  @PathVariable UUID organizationId,
+                                  @Valid @RequestBody AthleteMembershipWrite write) {
+        return organizationService.addAthlete(actor, organizationId, write);
+    }
 }

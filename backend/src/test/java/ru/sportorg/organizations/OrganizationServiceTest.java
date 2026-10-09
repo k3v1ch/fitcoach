@@ -158,6 +158,51 @@ class OrganizationServiceTest {
     }
 
     @Test
+    void trainerWithMembersWriteCanGrantAthleteMembership() {
+        OrganizationMember athlete = new OrganizationMember(
+                UUID.randomUUID(), "Athlete Name", List.of("ATHLETE"), "ACTIVE");
+        when(repository.findOrganization(organizationId)).thenReturn(Optional.of(organization()));
+        when(repository.findActiveMembership(trainer.userId(), organizationId))
+                .thenReturn(Optional.of(new OrganizationRepository.MembershipAccess(
+                        List.of("TRAINER"), List.of("members.write"))));
+        when(repository.addAthleteMembership(organizationId, "athlete@example.org",
+                MembershipPolicy.selfServicePermissions(), NOW)).thenReturn(Optional.of(athlete));
+
+        OrganizationMember result = organizationService.addAthlete(trainer, organizationId,
+                new AthleteMembershipWrite(" Athlete@Example.org "));
+
+        assertEquals(athlete, result);
+    }
+
+    @Test
+    void athleteMembershipGrantRequiresTrainerRoleAndMembersWrite() {
+        when(repository.findOrganization(organizationId)).thenReturn(Optional.of(organization()));
+        when(repository.findActiveMembership(trainer.userId(), organizationId))
+                .thenReturn(Optional.of(new OrganizationRepository.MembershipAccess(
+                        List.of("PARENT"), List.of("members.write"))));
+
+        assertThrows(OrganizationPermissionException.class,
+                () -> organizationService.addAthlete(trainer, organizationId,
+                        new AthleteMembershipWrite("athlete@example.org")));
+
+        verify(repository, never()).addAthleteMembership(any(), any(), any(), any());
+    }
+
+    @Test
+    void athleteMembershipGrantRejectsUnknownOrInactiveAccount() {
+        when(repository.findOrganization(organizationId)).thenReturn(Optional.of(organization()));
+        when(repository.findActiveMembership(trainer.userId(), organizationId))
+                .thenReturn(Optional.of(new OrganizationRepository.MembershipAccess(
+                        List.of("TRAINER"), List.of("members.write"))));
+        when(repository.addAthleteMembership(organizationId, "athlete@example.org",
+                MembershipPolicy.selfServicePermissions(), NOW)).thenReturn(Optional.empty());
+
+        assertThrows(OrganizationRequestException.class,
+                () -> organizationService.addAthlete(trainer, organizationId,
+                        new AthleteMembershipWrite("athlete@example.org")));
+    }
+
+    @Test
     void listsOnlyOrganizationsAvailableToCurrentUser() {
         List<OrganizationAccess> organizations = List.of(new OrganizationAccess(
                 organizationId, "Club", List.of("TRAINER"), List.of("sections.write")));
